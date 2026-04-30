@@ -81,6 +81,12 @@ streamlit run dashboard/app.py
 
 By default the dashboard reads: `~/.cursor/ai-tracking/skill-usage.jsonl`
 
+### Dashboard metric definitions
+
+- **Total invocations**: total number of events in the currently selected filters (date range, repo, model).
+- **Invocations today**: number of events on the most recent day present in the filtered dataset.
+- **Unique skills / sessions / repos**: distinct counts within the currently filtered dataset.
+
 ### Log helper
 
 Use `scripts/log_skill_event.py` to append valid events quickly:
