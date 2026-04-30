@@ -58,6 +58,33 @@ python scripts/log_skill_event.py \
   --model gpt-5.3-codex
 ```
 
+### Automated tracking (recommended)
+
+Use `scripts/auto_track_skill_usage.py` to automatically watch agent transcripts and append skill events.
+
+One-time ingest of current transcript history:
+
+```bash
+python scripts/auto_track_skill_usage.py \
+  --once \
+  --repo panda-skills-for-llms \
+  --model gpt-5.3-codex
+```
+
+Continuous watch mode:
+
+```bash
+python scripts/auto_track_skill_usage.py \
+  --repo panda-skills-for-llms \
+  --model gpt-5.3-codex \
+  --interval-seconds 5
+```
+
+Notes:
+- The watcher reads transcript JSONL files and detects `skills/<name>/SKILL.md` references.
+- It stores per-file offsets in `~/.cursor/ai-tracking/skill-tracker-state.json` to avoid double counting.
+- It writes events to `~/.cursor/ai-tracking/skill-usage.jsonl`, which the dashboard already reads.
+
 ## Contributing
 
 Contributions are welcome.
