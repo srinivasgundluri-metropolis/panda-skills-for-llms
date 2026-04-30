@@ -1,8 +1,8 @@
 # Panda Skills for LLMs
 
-Open-source skill packs for Cursor/Claude-style coding agents.
+**Lazy like pandas. Efficient like pros.** Reusable skills that turn prompt effort into reliable LLM workflows.
 
-This repository is intended as a **public, community-maintained collection** that anyone can use, fork, and improve.
+This is a **public, community-maintained collection** that anyone can use, fork, and improve.
 
 ## What this repo is
 
