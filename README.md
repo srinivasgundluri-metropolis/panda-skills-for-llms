@@ -89,12 +89,6 @@ By default the dashboard reads: `~/.cursor/ai-tracking/skill-usage.jsonl`
 
 ### Dashboard screenshots
 
-Overview:
-
-![Panda Skills Analytics Overview](assets/skills-analytics-overview.png)
-
-Extended view:
-
 ![Panda Skills Analytics Full View](assets/skills-analytics-fullpage.png)
 
 ### Log helper
