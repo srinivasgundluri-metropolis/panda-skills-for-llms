@@ -17,6 +17,7 @@ This repository is intended as a **public, community-maintained collection** tha
 
 ## Excluded
 
+- `skills-cursor/` (not treated as your personal skill set)
 - Third-party/plugin-cache skills (including Superpowers cache content)
 - Machine-local generated artifacts not useful for contributors
 
@@ -42,4 +43,4 @@ When opening a PR, include:
 
 ## License
 
-No license file is currently included. If you want broad reuse, add a license (MIT is a common choice for skill libraries).
+MIT — see `LICENSE`.
