@@ -15,6 +15,8 @@ The repo intentionally includes only your personal/global skill set as the start
 
 - `skills/` (your personal/global skill set from `~/.cursor/skills`)
 - `rules/` (your personal/global rule set from `~/.cursor/rules`)
+- `templates/spec-driven/` (PRD/UI/TECH/RFC/ADR/traceability/release templates)
+- `templates/tdd/` (test plan and regression checklist templates)
 
 ## Excluded
 

@@ -7,8 +7,8 @@ description: Enforces split-spec workflow using PRD, UI-SPEC, and TECH-SPEC with
 
 ## Default behavior
 - Treat specs as source of truth before major implementation.
-- Global reference pack: `~/.cursor/spec-driven/PLAYBOOK.md`
-- Global templates: `~/.cursor/spec-driven/templates/`
+- Reference pack: `templates/spec-driven/PLAYBOOK.md`
+- Templates: `templates/spec-driven/`
 - Use split specs at:
   - `docs/specs/PRD.md`
   - `docs/specs/UI-SPEC.md`
@@ -21,7 +21,7 @@ description: Enforces split-spec workflow using PRD, UI-SPEC, and TECH-SPEC with
   - `docs/specs/ACCEPTANCE-TEST-MAP.md`
   - `docs/specs/RELEASE-RISK-CHECKLIST.md`
 - If files do not exist, create them before major code changes.
-- Prefer copying global templates into project `docs/specs/` instead of drafting from scratch.
+- Prefer copying templates from this repo into project `docs/specs/` instead of drafting from scratch.
 
 ## Hybrid gating policy
 - **Hard gate** for major changes:

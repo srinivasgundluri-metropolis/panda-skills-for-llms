@@ -8,6 +8,11 @@ description: Enforces test-first and verification loops for feature work, includ
 ## Core rule
 Write or update tests around behavior changes before finalizing implementation.
 
+## Templates to use
+- `templates/spec-driven/ACCEPTANCE-TEST-MAP.md`
+- `templates/tdd/TEST-PLAN.md`
+- `templates/tdd/REGRESSION-CHECKLIST.md`
+
 ## Required workflow
 1. Identify behavior changes and affected surfaces.
 2. Add or update unit tests for new and modified logic.
