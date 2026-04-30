@@ -32,6 +32,20 @@ The repo intentionally includes only your personal/global skill set as the start
 - Adapt prompts/instructions to your workflow and stack
 - Submit improvements back via pull requests
 
+## Skill Usage Dashboard
+
+A simple Streamlit dashboard is included at `dashboard/app.py`.
+
+- Install deps: `pip install -r dashboard/requirements.txt`
+- Run: `streamlit run dashboard/app.py`
+- Default log path: `~/.cursor/ai-tracking/skill-usage.jsonl`
+
+Expected JSONL shape per line:
+
+```json
+{"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"panda-skills-for-llms","model":"gpt-5.3-codex"}
+```
+
 ## Contributing
 
 Contributions are welcome.
