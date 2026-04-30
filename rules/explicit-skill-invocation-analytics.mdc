@@ -1,0 +1,10 @@
+---
+description: Require explicit skill invocation for analytics visibility
+alwaysApply: true
+---
+
+# Explicit Skill Invocation
+
+- When a relevant skill is available, invoke it explicitly before doing the work.
+- Do not rely on "following the pattern" without invocation if the goal includes skill analytics visibility.
+- In responses about skill usage, name only skills that were explicitly invoked in this session.
