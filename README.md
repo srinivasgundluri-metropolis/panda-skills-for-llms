@@ -46,6 +46,18 @@ Expected JSONL shape per line:
 {"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"panda-skills-for-llms","model":"gpt-5.3-codex"}
 ```
 
+### Log helper
+
+Use `scripts/log_skill_event.py` to append valid events quickly:
+
+```bash
+python scripts/log_skill_event.py \
+  --skill-name spec-driven-development \
+  --session-id demo-001 \
+  --repo panda-skills-for-llms \
+  --model gpt-5.3-codex
+```
+
 ## Contributing
 
 Contributions are welcome.
