@@ -1,0 +1,19 @@
+---
+description: Require review-open-pr before approve-pr, and allow approval only when all-good-lgtm is yes.
+alwaysApply: true
+---
+
+# Approve PR Gate
+
+When the `approve-pr` skill is used, enforce this workflow:
+
+1. Run `review-open-pr` first for the same target PR.
+2. Read the `review-open-pr` output categories.
+3. Only proceed with approval when `all-good-lgtm` is `yes`.
+4. If `all-good-lgtm` is `no`, ask the user whether to override approval.
+5. Approve only if the user explicitly confirms override for that PR; otherwise keep approval blocked.
+
+Approval rule:
+- `all-good-lgtm: yes` -> approval allowed
+- `all-good-lgtm: no` -> ask for explicit user override
+- explicit user override -> approval allowed

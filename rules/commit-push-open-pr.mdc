@@ -1,0 +1,18 @@
+---
+description: After commit + push, always draft/create PR via open-pr without being asked.
+alwaysApply: true
+---
+
+# Commit → push → open PR
+
+After you successfully **commit and push** git changes:
+
+1. **Do not stop at push.** Continue with PR handling unless skipping is impossible or the user forbade PR creation for this work.
+2. Follow the **`open-pr` skill** at `~/.cursor/skills/open-pr/SKILL.md` when present; otherwise infer the same workflow: review `git log <base>..HEAD` and `git diff <base>...HEAD` — default `<base>` is `main`.
+3. **Create or update a PR:**
+   - If no open PR exists for the pushed branch → `gh pr create` with a concise title plus the personal-project-style body template from the skill.
+   - If a PR already exists → align title/body with the latest diff when needed (`gh pr edit`, etc.).
+4. Prefer **no Jira/ticket prefixes** unless the repo or user convention requires them (`open-pr` skill).
+5. **Return the PR URL** in your reply.
+
+Skip only when there is no suitable remote/GitHub CLI, tools fail clearly, or the user opted out.

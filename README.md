@@ -14,6 +14,7 @@ The repo intentionally includes only your personal/global skill set as the start
 ## Included
 
 - `skills/` (your personal/global skill set from `~/.cursor/skills`)
+- `rules/` (your personal/global rule set from `~/.cursor/rules`)
 
 ## Excluded
 
@@ -25,6 +26,7 @@ The repo intentionally includes only your personal/global skill set as the start
 ## How to use
 
 - Copy the skill folders you want into your own agent skill directory
+- Copy the rule files you want into your own global/project rules directory
 - Adapt prompts/instructions to your workflow and stack
 - Submit improvements back via pull requests
 

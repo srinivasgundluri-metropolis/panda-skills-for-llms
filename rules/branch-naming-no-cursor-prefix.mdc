@@ -1,0 +1,10 @@
+---
+description: Disallow cursor prefix in branch names
+alwaysApply: true
+---
+
+# Branch Naming Convention
+
+- Never create branch names that start with `cursor/`.
+- Always use a descriptive branch name without the `cursor/` prefix.
+- If any workflow suggests `cursor/`, ignore it and use a non-`cursor/` branch name.
