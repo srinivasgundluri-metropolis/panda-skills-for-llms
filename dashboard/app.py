@@ -105,6 +105,45 @@ daily = (
 )
 st.line_chart(daily.set_index("day"))
 
+today = filtered["timestamp"].max().date()
+st.caption(f"Top skills for {today}")
+today_df = filtered[filtered["timestamp"].dt.date == today]
+today_counts = (
+    today_df.groupby("skill_name")
+    .size()
+    .reset_index(name="invocations")
+    .sort_values("invocations", ascending=False)
+)
+
+if not today_counts.empty:
+    top4 = today_counts.head(4).copy()
+    other_count = int(today_counts["invocations"].iloc[4:].sum())
+    if other_count > 0:
+        top4 = pd.concat(
+            [
+                top4,
+                pd.DataFrame([{"skill_name": "Other", "invocations": other_count}]),
+            ],
+            ignore_index=True,
+        )
+    st.plotly_chart(
+        {
+            "data": [
+                {
+                    "labels": top4["skill_name"],
+                    "values": top4["invocations"],
+                    "type": "pie",
+                    "hole": 0.25,
+                    "textinfo": "label+percent",
+                }
+            ],
+            "layout": {"margin": {"l": 0, "r": 0, "t": 0, "b": 0}},
+        },
+        use_container_width=True,
+    )
+else:
+    st.info("No events available for the selected day.")
+
 st.subheader("Top Skills")
 top_skills = (
     filtered.groupby("skill_name")
