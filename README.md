@@ -3,7 +3,6 @@
 **Lazy like pandas. Efficient like pros.** Reusable skills that turn prompt effort into reliable LLM workflows.
 
 This is a **public, community-maintained collection** that anyone can use, fork, and improve.
-The repo intentionally includes only your personal/global skill set as the starting point.
 
 ## What this repo is
 
@@ -11,25 +10,26 @@ The repo intentionally includes only your personal/global skill set as the start
 - A starting point for teams who want shared, reusable skill workflows
 - A place for community contributions and iterative improvements
 
-## Included
+## Repository layout
 
-- `skills/` (your personal/global skill set from `~/.cursor/skills`)
-- `rules/` (your personal/global rule set from `~/.cursor/rules`)
-- `templates/spec-driven/` (PRD/UI/TECH/RFC/ADR/traceability/release templates)
-- `templates/tdd/` (test plan and regression checklist templates)
+- `skills/`: reusable skill definitions for agent workflows
+- `rules/`: reusable policy/rule files to guide agent behavior
+- `templates/spec-driven/`: PRD/UI/TECH/RFC/ADR/traceability/release templates
+- `templates/tdd/`: test planning and regression checklist templates
+- `dashboard/`: Streamlit analytics app for skill usage
+- `scripts/`: utility scripts (for example, event logging)
 
-## Excluded
+## Design principles
 
-- `skills-cursor/` (not treated as your personal skill set)
-- Claude-synced/default skills that are not part of your personal set
-- Third-party/plugin-cache skills (including Superpowers cache content)
-- Machine-local generated artifacts not useful for contributors
+- LLM-agnostic: content should work regardless of the underlying model
+- Runtime-flexible: adapt to Cursor, Claude-style agents, or similar tooling
+- Reusable by default: prefer templates and composable workflows over one-off prompts
+- Contributor-friendly: keep docs clear, practical, and easy to extend
 
 ## How to use
 
-- Copy the skill folders you want into your own agent skill directory
-- Copy the rule files you want into your own global/project rules directory
-- Adapt prompts/instructions to your workflow and stack
+- Copy or adapt the `skills/`, `rules/`, and `templates/` content into your agent setup
+- Adjust prompts/instructions for your tooling and team conventions
 - Submit improvements back via pull requests
 
 ## Skill Usage Dashboard
