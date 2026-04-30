@@ -96,10 +96,10 @@ col2.metric("Unique skills", f"{filtered['skill_name'].nunique():,}")
 col3.metric("Unique sessions", f"{filtered['session_id'].nunique():,}")
 col4.metric("Unique repos", f"{filtered['repo'].nunique():,}")
 
-st.subheader("Daily Invocations")
+st.subheader("Today")
 today = filtered["timestamp"].max().date()
 daily_total = int((filtered["timestamp"].dt.date == today).sum())
-st.metric("Total daily invocations", f"{daily_total:,}")
+st.metric("Invocations today", f"{daily_total:,}")
 st.caption(f"Top skills for {today}")
 today_df = filtered[filtered["timestamp"].dt.date == today]
 today_counts = (
