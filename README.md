@@ -32,19 +32,54 @@ This is a **public, community-maintained collection** that anyone can use, fork,
 - Adjust prompts/instructions for your tooling and team conventions
 - Submit improvements back via pull requests
 
-## Skill Usage Dashboard
+## Skill Usage Tracking (Dashboard + Events)
 
-A simple Streamlit dashboard is included at `dashboard/app.py`.
+The tracking system has two parts:
 
-- Install deps: `pip install -r dashboard/requirements.txt`
-- Run: `streamlit run dashboard/app.py`
-- Default log path: `~/.cursor/ai-tracking/skill-usage.jsonl`
+1. **Event producer**: writes skill-usage events to JSONL
+2. **Streamlit dashboard**: reads that JSONL and visualizes usage
+
+### Event format
 
 Expected JSONL shape per line:
 
 ```json
 {"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"panda-skills-for-llms","model":"gpt-5.3-codex"}
 ```
+
+### Quick start (recommended)
+
+1) Install dashboard dependencies:
+
+```bash
+pip install -r dashboard/requirements.txt
+```
+
+2) Backfill existing transcripts once:
+
+```bash
+python scripts/auto_track_skill_usage.py \
+  --once \
+  --repo panda-skills-for-llms \
+  --model cursor
+```
+
+3) Start continuous tracking:
+
+```bash
+python scripts/auto_track_skill_usage.py \
+  --repo panda-skills-for-llms \
+  --model cursor \
+  --interval-seconds 5
+```
+
+4) Run dashboard:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+By default the dashboard reads: `~/.cursor/ai-tracking/skill-usage.jsonl`
 
 ### Log helper
 
@@ -84,6 +119,7 @@ Notes:
 - The watcher reads transcript JSONL files and detects `skills/<name>/SKILL.md` references.
 - It stores per-file offsets in `~/.cursor/ai-tracking/skill-tracker-state.json` to avoid double counting.
 - It writes events to `~/.cursor/ai-tracking/skill-usage.jsonl`, which the dashboard already reads.
+- Use `--transcripts-root` if your agent stores transcripts in a non-default location.
 
 ### Auto-start on macOS (launchd)
 
@@ -100,6 +136,13 @@ Uninstall:
 ```bash
 python scripts/uninstall_launch_agent.py
 ```
+
+### Troubleshooting
+
+- **Dashboard is empty**: run `--once` ingest first and confirm events exist in `~/.cursor/ai-tracking/skill-usage.jsonl`.
+- **No new events**: verify transcript path is correct (`--transcripts-root`) and tracker is running.
+- **Duplicate events concern**: offsets are persisted in `skill-tracker-state.json`; do not delete it unless you want reprocessing.
+- **Wrong model label**: reinstall launch agent with a new `--model` value.
 
 ## Contributing
 
