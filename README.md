@@ -85,6 +85,22 @@ Notes:
 - It stores per-file offsets in `~/.cursor/ai-tracking/skill-tracker-state.json` to avoid double counting.
 - It writes events to `~/.cursor/ai-tracking/skill-usage.jsonl`, which the dashboard already reads.
 
+### Auto-start on macOS (launchd)
+
+Install and start tracker at login:
+
+```bash
+python scripts/install_launch_agent.py \
+  --repo panda-skills-for-llms \
+  --model gpt-5.3-codex
+```
+
+Uninstall:
+
+```bash
+python scripts/uninstall_launch_agent.py
+```
+
 ## Contributing
 
 Contributions are welcome.
