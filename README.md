@@ -3,6 +3,7 @@
 **Lazy like pandas. Efficient like pros.** Reusable skills that turn prompt effort into reliable LLM workflows.
 
 This is a **public, community-maintained collection** that anyone can use, fork, and improve.
+One shared `skills/` directory is designed to work across Cursor/Claude-style agents regardless of underlying LLM.
 
 ## What this repo is
 
@@ -12,12 +13,12 @@ This is a **public, community-maintained collection** that anyone can use, fork,
 
 ## Included
 
-- `skills/` (Cursor global skills)
-- `claude-skills/` (first-party synced Claude skills)
+- `skills/` (unified, cross-compatible skill set for Cursor/Claude-style workflows)
 
 ## Excluded
 
 - `skills-cursor/` (not treated as your personal skill set)
+- Separate runtime-specific duplication folders (for example old `claude-skills/`)
 - Third-party/plugin-cache skills (including Superpowers cache content)
 - Machine-local generated artifacts not useful for contributors
 
