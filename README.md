@@ -87,6 +87,16 @@ By default the dashboard reads: `~/.cursor/ai-tracking/skill-usage.jsonl`
 - **Invocations today**: number of events on the most recent day present in the filtered dataset.
 - **Unique skills / sessions / repos**: distinct counts within the currently filtered dataset.
 
+### Dashboard screenshots
+
+Overview:
+
+![Panda Skills Analytics Overview](assets/skills-analytics-overview.png)
+
+Extended view:
+
+![Panda Skills Analytics Full View](assets/skills-analytics-fullpage.png)
+
 ### Log helper
 
 Use `scripts/log_skill_event.py` to append valid events quickly:
