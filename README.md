@@ -126,7 +126,9 @@ python scripts/auto_track_skill_usage.py \
 ```
 
 Notes:
-- The watcher reads transcript JSONL files and detects `skills/<name>/SKILL.md` references.
+- The watcher reads transcript JSONL files and detects:
+  - explicit `skills/<name>/SKILL.md` references, and
+  - explicit skill-name mentions (using known skill folders from `skills/`).
 - It stores per-file offsets in `~/.cursor/ai-tracking/skill-tracker-state.json` to avoid double counting.
 - It writes events to `~/.cursor/ai-tracking/skill-usage.jsonl`, which the dashboard already reads.
 - Use `--transcripts-root` if your agent stores transcripts in a non-default location.
