@@ -36,11 +36,21 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def default_claude_projects_root() -> Path:
+def default_claude_config_home() -> Path:
     override = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
     if override:
-        return Path(override).expanduser() / "projects"
-    return Path.home() / ".claude" / "projects"
+        return Path(override).expanduser()
+    return Path.home() / ".claude"
+
+
+def default_claude_projects_root() -> Path:
+    return default_claude_config_home() / "projects"
+
+
+def default_claude_skill_log_and_state() -> tuple[Path, Path]:
+    """Skill usage JSONL + offset state under ~/.claude/ai-tracking (or CLAUDE_CONFIG_DIR)."""
+    base = default_claude_config_home() / "ai-tracking"
+    return base / "skill-usage.jsonl", base / "skill-tracker-state.json"
 
 
 def load_state(path: Path) -> dict[str, dict[str, int]]:
@@ -234,13 +244,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--log-path",
-        default=str(DEFAULT_LOG_PATH),
-        help="JSONL output path for skill usage events.",
+        default=None,
+        help=(
+            "JSONL output path. Default: ~/.cursor/ai-tracking/skill-usage.jsonl for layout=cursor; "
+            "~/.claude/ai-tracking/skill-usage.jsonl for layout=claude-code (honors CLAUDE_CONFIG_DIR)."
+        ),
     )
     parser.add_argument(
         "--state-path",
-        default=str(DEFAULT_STATE_PATH),
-        help="State file path for per-transcript offsets.",
+        default=None,
+        help=(
+            "Offset state path. Default: ~/.cursor/ai-tracking/skill-tracker-state.json for cursor; "
+            "~/.claude/ai-tracking/skill-tracker-state.json for claude-code."
+        ),
     )
     parser.add_argument("--repo", default="unknown", help="Repo/project label for events.")
     parser.add_argument("--model", default="unknown", help="Model label for events.")
@@ -274,8 +290,20 @@ def main() -> None:
         transcripts_root = default_claude_projects_root()
     else:
         transcripts_root = Path.home() / ".cursor" / "projects"
-    log_path = Path(args.log_path).expanduser()
-    state_path = Path(args.state_path).expanduser()
+
+    if args.log_path is not None:
+        log_path = Path(args.log_path).expanduser()
+    elif layout == LAYOUT_CLAUDE_CODE:
+        log_path, _ = default_claude_skill_log_and_state()
+    else:
+        log_path = DEFAULT_LOG_PATH
+
+    if args.state_path is not None:
+        state_path = Path(args.state_path).expanduser()
+    elif layout == LAYOUT_CLAUDE_CODE:
+        _, state_path = default_claude_skill_log_and_state()
+    else:
+        state_path = DEFAULT_STATE_PATH
     skills_dir = Path(args.skills_dir).expanduser()
     known_skills = load_known_skills(skills_dir)
 

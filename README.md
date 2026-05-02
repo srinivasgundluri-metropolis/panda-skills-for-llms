@@ -135,21 +135,23 @@ Notes:
 
 #### Claude Code alongside Cursor
 
-Keep the default Cursor watcher as-is (same `--log-path` / `--state-path`). Run a **second** watcher for Claude Code with a **different** log and state file so Cursor offsets stay untouched:
+Claude Code reads transcripts from **`~/.claude/projects`** (session `*.jsonl` files). Skill usage events belong under **`~/.claude/ai-tracking/`**, separate from Cursor’s **`~/.cursor/ai-tracking/`**.
+
+Keep the Cursor watcher unchanged. Run a **second** process for Claude Code; with `--layout claude-code`, **omit** `--log-path` / `--state-path` to use the Claude defaults:
 
 ```bash
 python scripts/auto_track_skill_usage.py \
   --layout claude-code \
-  --log-path ~/.cursor/ai-tracking/skill-usage-claude-code.jsonl \
-  --state-path ~/.cursor/ai-tracking/skill-tracker-state-claude-code.json \
   --repo panda-skills-for-llms \
   --model claude-code \
   --interval-seconds 5
 ```
 
-By default this scans `~/.claude/projects` for session `*.jsonl` transcripts (see Claude’s [application data](https://code.claude.com/docs/en/claude-directory.md#application-data)). If you use `CLAUDE_CONFIG_DIR`, the script resolves projects under `$CLAUDE_CONFIG_DIR/projects`.
+That writes `~/.claude/ai-tracking/skill-usage.jsonl` and `~/.claude/ai-tracking/skill-tracker-state.json`. If you use `CLAUDE_CONFIG_DIR`, both transcript scanning and these paths resolve under that directory (same as Claude’s own config layout).
 
-The Streamlit sidebar can **merge** multiple logs: set the primary path to `skill-usage.jsonl` and list `skill-usage-claude-code.jsonl` under “Additional log paths,” or clear the extra box to view one source only.
+The Streamlit sidebar can **merge** logs: primary = `~/.cursor/ai-tracking/skill-usage.jsonl`, “Additional log paths” = `~/.claude/ai-tracking/skill-usage.jsonl` (or clear the extra box to view one source).
+
+See Claude’s [application data](https://code.claude.com/docs/en/claude-directory.md#application-data) for where transcripts live.
 
 ### Auto-start on macOS (launchd)
 

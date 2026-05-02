@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -9,7 +10,13 @@ import streamlit as st
 
 
 DEFAULT_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage.jsonl"
-DEFAULT_CLAUDE_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage-claude-code.jsonl"
+
+
+def default_claude_skill_usage_log_path() -> Path:
+    """Matches auto_track_skill_usage.py defaults for layout=claude-code."""
+    override = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
+    root = Path(override).expanduser() if override else Path.home() / ".claude"
+    return root / "ai-tracking" / "skill-usage.jsonl"
 
 
 def _parse_timestamp(value: str) -> datetime | None:
@@ -68,19 +75,23 @@ def _parse_extra_log_paths(raw: str) -> list[Path]:
 
 st.set_page_config(page_title="Panda Skills Analytics", layout="wide")
 st.title("Panda Skills Analytics")
-st.caption("Track skill invocation trends from a JSONL log.")
+st.caption(
+    "Track skill invocation trends from JSONL logs (Cursor: ~/.cursor/ai-tracking/; "
+    "Claude Code: ~/.claude/ai-tracking/)."
+)
 
 with st.sidebar:
     st.header("Data source")
     path_input = st.text_input("Primary log file path", str(DEFAULT_LOG_PATH))
     log_path = Path(path_input).expanduser()
+    claude_default_log = default_claude_skill_usage_log_path()
     merge_help = (
-        "Optional. Merge Claude Code (or other) JSONL logs with the primary file. "
-        f"Default Claude export path: `{DEFAULT_CLAUDE_LOG_PATH}`."
+        "Optional. Merge Claude Code (or other) JSONL with the primary log. "
+        f"Default Claude watcher output: `{claude_default_log}`."
     )
     extra_raw = st.text_area(
         "Additional log paths (one per line)",
-        value=str(DEFAULT_CLAUDE_LOG_PATH) if DEFAULT_CLAUDE_LOG_PATH.exists() else "",
+        value=str(claude_default_log) if claude_default_log.exists() else "",
         height=100,
         help=merge_help,
     )
