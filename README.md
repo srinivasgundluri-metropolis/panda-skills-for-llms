@@ -13,7 +13,7 @@ This is a **public, community-maintained collection** that anyone can use, fork,
 ## Repository layout
 
 - `skills/`: reusable skill definitions for agent workflows
-- `rules/`: reusable policy/rule files to guide agent behavior
+- `rules/`: reusable policy/rule files to guide agent behavior (includes optional Cursor `.mdc` and Claude Code reminders under `rules/claude-code/`)
 - `templates/spec-driven/`: PRD/UI/TECH/RFC/ADR/traceability/release templates
 - `templates/tdd/`: test planning and regression checklist templates
 - `dashboard/`: Streamlit analytics app for skill usage
@@ -32,149 +32,126 @@ This is a **public, community-maintained collection** that anyone can use, fork,
 - Adjust prompts/instructions for your tooling and team conventions
 - Submit improvements back via pull requests
 
-## Skill Usage Tracking (Dashboard + Events)
+## Skill usage tracking (transcripts → JSONL → dashboard)
 
-The tracking system has two parts:
+This answers: **“Which skills did my agents actually use, and when?”** It does **not** read your whole chat—only lines that reference a skill path or a known skill name from `skills/`.
 
-1. **Event producer**: writes skill-usage events to JSONL
-2. **Streamlit dashboard**: reads that JSONL and visualizes usage
+| Piece | What it does |
+| --- | --- |
+| **Watcher** | `scripts/auto_track_skill_usage.py` tails transcript files, appends one JSON line per detected skill hit. |
+| **Logs** | JSONL files you can back up, merge, or feed to other tools. |
+| **Dashboard** | `streamlit run dashboard/app.py` charts and filters those events. |
 
-### Event format
+Set a stable label for your work (replace `YOUR_REPO` with a short name, or use your git remote name):
 
-Expected JSONL shape per line:
+```bash
+export PANDA_SKILLS_ROOT="/absolute/path/to/this/repo"   # optional but handy
+export REPO_LABEL="YOUR_REPO"   # used as --repo in examples below; e.g. my-app
+```
+
+### Where files go (Cursor vs Claude Code)
+
+| Runtime | Watcher flag | Transcripts (default) | Events JSONL | Offset state (no double-count) |
+| --- | --- | --- | --- | --- |
+| **Cursor** | `--layout cursor` (default) | `~/.cursor/projects/**/agent-transcripts/**/*.jsonl` | `~/.cursor/ai-tracking/skill-usage.jsonl` | `~/.cursor/ai-tracking/skill-tracker-state.json` |
+| **Claude Code** | `--layout claude-code` | `~/.claude/projects/**/*.jsonl` (excludes `memory/`, `tool-results/`) | `~/.claude/ai-tracking/skill-usage.jsonl` | `~/.claude/ai-tracking/skill-tracker-state.json` |
+
+If you set **`CLAUDE_CONFIG_DIR`**, Claude’s paths are under that directory instead of `~/.claude`. Cursor and Claude use **separate** logs so you can run two watchers at once.
+
+### Event format (one JSON object per line)
 
 ```json
-{"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"panda-skills-for-llms","model":"gpt-5.3-codex"}
+{"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"YOUR_REPO","model":"cursor"}
 ```
 
-### Quick start (recommended)
+### Quick start
 
-1) Install dashboard dependencies:
+1. **Install dashboard dependencies**
 
-```bash
-pip install -r dashboard/requirements.txt
-```
+   ```bash
+   pip install -r dashboard/requirements.txt
+   ```
 
-2) Backfill existing transcripts once:
+2. **Ingest history once, then keep watching (Cursor example)**
 
-```bash
-python scripts/auto_track_skill_usage.py \
-  --once \
-  --repo panda-skills-for-llms \
-  --model cursor
-```
+   From the repo root (or use `$PANDA_SKILLS_ROOT`):
 
-3) Start continuous tracking:
+   ```bash
+   python scripts/auto_track_skill_usage.py --once --repo "$REPO_LABEL" --model cursor
+   python scripts/auto_track_skill_usage.py --repo "$REPO_LABEL" --model cursor --interval-seconds 5
+   ```
 
-```bash
-python scripts/auto_track_skill_usage.py \
-  --repo panda-skills-for-llms \
-  --model cursor \
-  --interval-seconds 5
-```
+3. **Open the dashboard**
 
-4) Run dashboard:
+   ```bash
+   streamlit run dashboard/app.py
+   ```
 
-```bash
-streamlit run dashboard/app.py
-```
+   By default the primary file is `~/.cursor/ai-tracking/skill-usage.jsonl`.
 
-By default the dashboard reads: `~/.cursor/ai-tracking/skill-usage.jsonl`
+4. **Claude Code (second process, does not touch Cursor files)**
 
-### Dashboard metric definitions
+   ```bash
+   python scripts/auto_track_skill_usage.py \
+     --layout claude-code \
+     --repo "$REPO_LABEL" \
+     --model claude-code \
+     --interval-seconds 5
+   ```
 
-- **Total invocations**: total number of events in the currently selected filters (date range, repo, model).
-- **Invocations today**: number of events on the most recent day present in the filtered dataset.
-- **Unique skills / sessions / repos**: distinct counts within the currently filtered dataset.
+   Omit `--log-path` / `--state-path` to keep defaults under `~/.claude/ai-tracking/`.
 
-### Dashboard screenshots
+5. **See both tools in one dashboard**
+
+   Sidebar: primary = Cursor JSONL, **Additional log paths** = `~/.claude/ai-tracking/skill-usage.jsonl`.
+
+Transcript layout reference: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
+
+### Dashboard metrics
+
+- **Total invocations**: events matching current filters.
+- **Invocations today**: events on the latest calendar day in the filtered data (UTC by ingestion timestamps).
+- **Unique skills / sessions / repos**: distinct values in the filtered set.
+
+### Screenshot
 
 ![Panda Skills Analytics Full View](assets/skills-analytics-fullpage.png)
 
-### Log helper
-
-Use `scripts/log_skill_event.py` to append valid events quickly:
+### Manual log line (testing)
 
 ```bash
 python scripts/log_skill_event.py \
   --skill-name spec-driven-development \
   --session-id demo-001 \
-  --repo panda-skills-for-llms \
+  --repo "$REPO_LABEL" \
   --model gpt-5.3-codex
 ```
 
-### Automated tracking (recommended)
+### Optional: have the agent offer to start tracking every new session
 
-Use `scripts/auto_track_skill_usage.py` to automatically watch agent transcripts and append skill events.
+Copy the versioned templates from this repo into your **global** config (not per-project), then new chats will be nudged to start the watcher if you want it.
 
-One-time ingest of current transcript history:
+| Product | Copy this file | To |
+| --- | --- | --- |
+| **Cursor** | `rules/skill-tracking-session-offer.mdc` | `~/.cursor/rules/` (same filename; `alwaysApply: true` is already set) |
+| **Claude Code** | `rules/claude-code/skill-tracking-session-offer.md` | `~/.claude/rules/` |
 
-```bash
-python scripts/auto_track_skill_usage.py \
-  --once \
-  --repo panda-skills-for-llms \
-  --model gpt-5.3-codex
-```
+Set `PANDA_SKILLS_ROOT` in your shell profile so the agent can run `"$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py"` without guessing. The rules only **prompt** the assistant; they do not start processes by themselves.
 
-Continuous watch mode:
+### Auto-start on macOS (Cursor watcher only)
 
 ```bash
-python scripts/auto_track_skill_usage.py \
-  --repo panda-skills-for-llms \
-  --model gpt-5.3-codex \
-  --interval-seconds 5
+python scripts/install_launch_agent.py --repo "$REPO_LABEL" --model cursor
 ```
 
-Notes:
-- The watcher reads transcript JSONL files and detects:
-  - explicit `skills/<name>/SKILL.md` references, and
-  - explicit skill-name mentions (using known skill folders from `skills/`).
-- It stores per-file offsets in `~/.cursor/ai-tracking/skill-tracker-state.json` to avoid double counting.
-- It writes events to `~/.cursor/ai-tracking/skill-usage.jsonl`, which the dashboard already reads.
-- Use `--transcripts-root` if your agent stores transcripts in a non-default location.
-
-#### Claude Code alongside Cursor
-
-Claude Code reads transcripts from **`~/.claude/projects`** (session `*.jsonl` files). Skill usage events belong under **`~/.claude/ai-tracking/`**, separate from Cursor’s **`~/.cursor/ai-tracking/`**.
-
-Keep the Cursor watcher unchanged. Run a **second** process for Claude Code; with `--layout claude-code`, **omit** `--log-path` / `--state-path` to use the Claude defaults:
-
-```bash
-python scripts/auto_track_skill_usage.py \
-  --layout claude-code \
-  --repo panda-skills-for-llms \
-  --model claude-code \
-  --interval-seconds 5
-```
-
-That writes `~/.claude/ai-tracking/skill-usage.jsonl` and `~/.claude/ai-tracking/skill-tracker-state.json`. If you use `CLAUDE_CONFIG_DIR`, both transcript scanning and these paths resolve under that directory (same as Claude’s own config layout).
-
-The Streamlit sidebar can **merge** logs: primary = `~/.cursor/ai-tracking/skill-usage.jsonl`, “Additional log paths” = `~/.claude/ai-tracking/skill-usage.jsonl` (or clear the extra box to view one source).
-
-See Claude’s [application data](https://code.claude.com/docs/en/claude-directory.md#application-data) for where transcripts live.
-
-### Auto-start on macOS (launchd)
-
-Install and start tracker at login:
-
-```bash
-python scripts/install_launch_agent.py \
-  --repo panda-skills-for-llms \
-  --model gpt-5.3-codex
-```
-
-Uninstall:
-
-```bash
-python scripts/uninstall_launch_agent.py
-```
+Uninstall: `python scripts/uninstall_launch_agent.py`
 
 ### Troubleshooting
 
-- **Dashboard is empty**: run `--once` ingest first and confirm events exist in `~/.cursor/ai-tracking/skill-usage.jsonl`.
-- **No new events**: verify transcript path is correct (`--transcripts-root`) and tracker is running.
-- **Duplicate events concern**: offsets are persisted in `skill-tracker-state.json`; do not delete it unless you want reprocessing.
-- **Wrong model label**: reinstall launch agent with a new `--model` value.
+- **Empty dashboard**: run `--once`, confirm the JSONL path in the sidebar exists and has lines.
+- **No new events**: confirm the watcher is running; for non-default transcript locations use `--transcripts-root`.
+- **Reset and re-scan**: delete the JSONL **and** the matching `skill-tracker-state.json` for that runtime, then run `--once` again (you will re-emit events for all matching lines in existing transcripts).
+- **Two Cursor watchers**: avoid running `launchd` and a manual Cursor watcher with the same log without intending duplicates.
 
 ## Contributing
 
