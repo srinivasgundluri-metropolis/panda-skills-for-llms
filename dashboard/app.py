@@ -9,6 +9,7 @@ import streamlit as st
 
 
 DEFAULT_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage.jsonl"
+DEFAULT_CLAUDE_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage-claude-code.jsonl"
 
 
 def _parse_timestamp(value: str) -> datetime | None:
@@ -47,17 +48,50 @@ def load_events(path: Path) -> pd.DataFrame:
     return df.dropna(subset=["timestamp"]).sort_values("timestamp")
 
 
+def load_events_from_paths(paths: list[Path]) -> pd.DataFrame:
+    frames = [load_events(p) for p in paths if p]
+    frames = [f for f in frames if not f.empty]
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True).sort_values("timestamp")
+
+
+def _parse_extra_log_paths(raw: str) -> list[Path]:
+    out: list[Path] = []
+    for line in (raw or "").splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        out.append(Path(s).expanduser())
+    return out
+
+
 st.set_page_config(page_title="Panda Skills Analytics", layout="wide")
 st.title("Panda Skills Analytics")
 st.caption("Track skill invocation trends from a JSONL log.")
 
 with st.sidebar:
     st.header("Data source")
-    path_input = st.text_input("Log file path", str(DEFAULT_LOG_PATH))
+    path_input = st.text_input("Primary log file path", str(DEFAULT_LOG_PATH))
     log_path = Path(path_input).expanduser()
-    st.write(f"Exists: {'Yes' if log_path.exists() else 'No'}")
+    merge_help = (
+        "Optional. Merge Claude Code (or other) JSONL logs with the primary file. "
+        f"Default Claude export path: `{DEFAULT_CLAUDE_LOG_PATH}`."
+    )
+    extra_raw = st.text_area(
+        "Additional log paths (one per line)",
+        value=str(DEFAULT_CLAUDE_LOG_PATH) if DEFAULT_CLAUDE_LOG_PATH.exists() else "",
+        height=100,
+        help=merge_help,
+    )
+    extra_paths = _parse_extra_log_paths(extra_raw)
+    all_paths = [log_path, *[p for p in extra_paths if p != log_path]]
+    st.write(
+        "Paths loaded: "
+        + ", ".join(f"{'✓' if p.exists() else '✗'} `{p.name}`" for p in all_paths)
+    )
 
-df = load_events(log_path)
+df = load_events_from_paths(all_paths)
 if df.empty:
     st.warning(
         "No valid events found. Add JSONL records with keys like "

@@ -133,6 +133,24 @@ Notes:
 - It writes events to `~/.cursor/ai-tracking/skill-usage.jsonl`, which the dashboard already reads.
 - Use `--transcripts-root` if your agent stores transcripts in a non-default location.
 
+#### Claude Code alongside Cursor
+
+Keep the default Cursor watcher as-is (same `--log-path` / `--state-path`). Run a **second** watcher for Claude Code with a **different** log and state file so Cursor offsets stay untouched:
+
+```bash
+python scripts/auto_track_skill_usage.py \
+  --layout claude-code \
+  --log-path ~/.cursor/ai-tracking/skill-usage-claude-code.jsonl \
+  --state-path ~/.cursor/ai-tracking/skill-tracker-state-claude-code.json \
+  --repo panda-skills-for-llms \
+  --model claude-code \
+  --interval-seconds 5
+```
+
+By default this scans `~/.claude/projects` for session `*.jsonl` transcripts (see Claude’s [application data](https://code.claude.com/docs/en/claude-directory.md#application-data)). If you use `CLAUDE_CONFIG_DIR`, the script resolves projects under `$CLAUDE_CONFIG_DIR/projects`.
+
+The Streamlit sidebar can **merge** multiple logs: set the primary path to `skill-usage.jsonl` and list `skill-usage-claude-code.jsonl` under “Additional log paths,” or clear the extra box to view one source only.
+
 ### Auto-start on macOS (launchd)
 
 Install and start tracker at login:

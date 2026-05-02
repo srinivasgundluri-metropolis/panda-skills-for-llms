@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -11,8 +12,13 @@ from pathlib import Path
 
 DEFAULT_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage.jsonl"
 DEFAULT_STATE_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-tracker-state.json"
-DEFAULT_TRANSCRIPTS_GLOB = "**/agent-transcripts/**/*.jsonl"
+DEFAULT_TRANSCRIPTS_GLOB_CURSOR = "**/agent-transcripts/**/*.jsonl"
+# Paths under ~/.claude/projects/ to ignore when layout=claude-code (not session transcripts).
+CLAUDE_TRANSCRIPT_EXCLUDE_DIR_NAMES = frozenset({"memory", "tool-results"})
 DEFAULT_SKILLS_DIR = (Path(__file__).resolve().parent.parent / "skills")
+
+LAYOUT_CURSOR = "cursor"
+LAYOUT_CLAUDE_CODE = "claude-code"
 
 SKILL_PATTERNS = [
     re.compile(r"/skills/([^/]+)/SKILL\.md"),
@@ -28,6 +34,13 @@ EXCLUDE_SNIPPETS = [
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def default_claude_projects_root() -> Path:
+    override = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
+    if override:
+        return Path(override).expanduser() / "projects"
+    return Path.home() / ".claude" / "projects"
 
 
 def load_state(path: Path) -> dict[str, dict[str, int]]:
@@ -47,8 +60,21 @@ def save_state(path: Path, state: dict[str, dict[str, int]]) -> None:
     path.write_text(json.dumps(state, indent=2))
 
 
-def discover_transcripts(root: Path) -> list[Path]:
-    return sorted(root.glob(DEFAULT_TRANSCRIPTS_GLOB))
+def _path_contains_excluded_dir(path: Path, excluded: frozenset[str]) -> bool:
+    return bool(excluded.intersection({p.lower() for p in path.parts}))
+
+
+def discover_transcripts(root: Path, layout: str) -> list[Path]:
+    if layout == LAYOUT_CLAUDE_CODE:
+        found: list[Path] = []
+        for p in sorted(root.glob("**/*.jsonl")):
+            if not p.is_file():
+                continue
+            if _path_contains_excluded_dir(p, CLAUDE_TRANSCRIPT_EXCLUDE_DIR_NAMES):
+                continue
+            found.append(p)
+        return found
+    return sorted(root.glob(DEFAULT_TRANSCRIPTS_GLOB_CURSOR))
 
 
 def load_known_skills(skills_dir: Path) -> set[str]:
@@ -92,8 +118,11 @@ def extract_named_skills(raw_line: str, known_skills: set[str]) -> set[str]:
     return found
 
 
-def infer_session_id(file_path: Path) -> str:
-    # Parent folder naming matches transcript UUID in Cursor exports.
+def infer_session_id(file_path: Path, layout: str) -> str:
+    if layout == LAYOUT_CLAUDE_CODE:
+        # Session transcript files are named <session-id>.jsonl under each project folder.
+        return file_path.stem
+    # Cursor: parent folder is the transcript UUID.
     if file_path.parent.name:
         return file_path.parent.name
     return file_path.stem
@@ -106,6 +135,7 @@ def process_new_lines(
     repo_name: str,
     model_name: str,
     known_skills: set[str],
+    layout: str,
 ) -> tuple[int, int]:
     file_size = transcript_file.stat().st_size
     offset = min(old_offset, file_size)
@@ -119,7 +149,7 @@ def process_new_lines(
     if not new_data:
         return new_offset, events_written
 
-    session_id = infer_session_id(transcript_file)
+    session_id = infer_session_id(transcript_file, layout)
     lines = new_data.splitlines()
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as out:
@@ -154,12 +184,13 @@ def run_once(
     repo_name: str,
     model_name: str,
     known_skills: set[str],
+    layout: str,
 ) -> int:
     state = load_state(state_path)
     offsets: dict[str, int] = state.get("offsets", {})
     total_events = 0
 
-    for transcript_file in discover_transcripts(transcripts_root):
+    for transcript_file in discover_transcripts(transcripts_root, layout):
         key = str(transcript_file)
         old_offset = int(offsets.get(key, 0))
         new_offset, events = process_new_lines(
@@ -169,6 +200,7 @@ def run_once(
             repo_name=repo_name,
             model_name=model_name,
             known_skills=known_skills,
+            layout=layout,
         )
         offsets[key] = new_offset
         total_events += events
@@ -180,12 +212,25 @@ def run_once(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Auto-track skill usage from Cursor agent transcript files."
+        description="Auto-track skill usage from agent transcript files (Cursor, Claude Code, similar)."
+    )
+    parser.add_argument(
+        "--layout",
+        choices=(LAYOUT_CURSOR, LAYOUT_CLAUDE_CODE),
+        default=LAYOUT_CURSOR,
+        help=(
+            "Transcript layout: "
+            f"'{LAYOUT_CURSOR}' expects **/agent-transcripts/**/*.jsonl under --transcripts-root; "
+            f"'{LAYOUT_CLAUDE_CODE}' expects session *.jsonl under ~/.claude/projects (see docs)."
+        ),
     )
     parser.add_argument(
         "--transcripts-root",
-        default=str(Path.home() / ".cursor" / "projects"),
-        help="Root directory that contains agent-transcripts folders.",
+        default=None,
+        help=(
+            "Root to scan for transcripts. Default: ~/.cursor/projects when layout=cursor, "
+            "or ~/.claude/projects when layout=claude-code."
+        ),
     )
     parser.add_argument(
         "--log-path",
@@ -222,7 +267,13 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    transcripts_root = Path(args.transcripts_root).expanduser()
+    layout: str = args.layout
+    if args.transcripts_root:
+        transcripts_root = Path(args.transcripts_root).expanduser()
+    elif layout == LAYOUT_CLAUDE_CODE:
+        transcripts_root = default_claude_projects_root()
+    else:
+        transcripts_root = Path.home() / ".cursor" / "projects"
     log_path = Path(args.log_path).expanduser()
     state_path = Path(args.state_path).expanduser()
     skills_dir = Path(args.skills_dir).expanduser()
@@ -236,10 +287,12 @@ def main() -> None:
             args.repo,
             args.model,
             known_skills,
+            layout,
         )
         print(f"Processed once. New events written: {events}")
         return
 
+    print(f"Layout: {layout}")
     print(f"Watching transcripts under: {transcripts_root}")
     print(f"Using skills directory: {skills_dir}")
     print(f"Writing events to: {log_path}")
@@ -252,6 +305,7 @@ def main() -> None:
             args.repo,
             args.model,
             known_skills,
+            layout,
         )
         if events:
             print(f"[{utc_now_iso()}] wrote {events} new event(s)")
