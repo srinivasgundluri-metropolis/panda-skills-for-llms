@@ -65,6 +65,7 @@ The app expects the log at **`~/.claude/ai-tracking/skill-usage.jsonl`** unless 
 - **Dashboard empty:** run the `--once` line above, then confirm the JSONL file exists.
 - **No new lines:** make sure the watcher is still running; transcripts must be under **`~/.claude/projects`** unless you passed **`--transcripts-root`**.
 - **Start counts over:** delete **`skill-usage.jsonl`** and **`skill-tracker-state.json`**, then run **`--once`** again (old transcripts get scanned again).
+- **Agent said yes but no watcher:** set **`PANDA_SKILLS_ROOT`** to the repo, or run from inside the clone so `git rev-parse --show-toplevel` finds `scripts/`. Check **`~/.claude/ai-tracking/watcher-nohup.log`** if the session rule used **`nohup`**.
 
 Where Claude stores transcripts: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 

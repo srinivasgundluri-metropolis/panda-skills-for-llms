@@ -7,29 +7,46 @@ alwaysApply: true
 
 When this is a **new agent chat** in Cursor (first assistant turn), **before** substantive work:
 
-## 1. Check if tracking is already running (do this first)
-
-Run:
+## 1. Check if tracking is already running
 
 ```bash
 pgrep -f auto_track_skill_usage.py
 ```
 
-- If this prints **one or more PIDs**, a watcher is already running (terminal or Launch Agent **`com.panda.skills.claude-code`**). **Do not ask** about starting tracking. **Do not** start another watcher. Continue with the user’s task.
-- If it prints **nothing**, go to step 2.
+- **Any PIDs** → do **not** ask, do **not** start another watcher.
+- **No output** → go to step 2.
 
-If `pgrep` is unavailable, skip the check and go to step 2.
+If `pgrep` is missing, go to step 2.
 
 ## 2. Only if no watcher — ask once
 
-Ask whether to start **Panda Skills** usage tracking for Claude Code (`auto_track_skill_usage.py` → `~/.claude/ai-tracking/skill-usage.jsonl` by default).
+Ask whether to start **Panda Skills** tracking for Claude Code.
 
-## 3. If they say yes
+## 3. If they say yes — run Bash and verify
 
-Run the watcher **in the background**. Use `$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py` when set; otherwise locate `scripts/auto_track_skill_usage.py` under their Panda Skills clone. Set `--repo` from `git remote` basename or workspace folder name.
+**Resolve script path** (first that exists):
+
+1. `$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py`
+2. `$(git rev-parse --show-toplevel)/scripts/auto_track_skill_usage.py` when cwd is inside the clone
+
+If neither exists, say the user must `export PANDA_SKILLS_ROOT=/path/to/clone` or open the clone as the workspace—**do not** claim the watcher started.
+
+**`--repo`:** from `git remote get-url origin` basename in that repo, else directory basename.
+
+**Start** (replace `<SCRIPT>` with the resolved path, `<REPO>` with repo label):
+
+```bash
+mkdir -p ~/.claude/ai-tracking
+nohup python3 "<SCRIPT>" --repo "<REPO>" --model claude-code --interval-seconds 5 \
+  >> ~/.claude/ai-tracking/watcher-nohup.log 2>&1 &
+sleep 1
+pgrep -f auto_track_skill_usage.py
+```
+
+Report **success with PID** or **failure** after `tail -20 ~/.claude/ai-tracking/watcher-nohup.log`.
 
 ## 4. If they decline
 
-**Do not** ask again in the same thread unless they ask.
+Do not ask again unless they ask.
 
-Skip steps 1–2 if the user’s first message already answers tracking (e.g. “start skill tracker”, “no tracker”).
+Skip 1–2 if the first user message already answers tracking.
