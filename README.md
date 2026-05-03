@@ -7,26 +7,30 @@ Reusable **skills** (prompt workflows) for coding agents—copy them into your s
 | Folder | Purpose |
 | --- | --- |
 | `skills/` | Skill definitions (`SKILL.md` per skill) |
-| `rules/` | Optional agent rules (e.g. Claude Code prompts in `rules/claude-code/`) |
+| `rules/` | Optional agent rules (e.g. Claude Code in `rules/claude-code/`) |
 | `templates/` | Spec and TDD templates |
-| `dashboard/` | Small **Streamlit** app to chart skill usage |
-| `scripts/` | Watcher that reads Claude Code transcripts and writes usage logs |
+| `dashboard/` | Streamlit app: usage over time, **per-agent comparison** when multiple `agent` values exist |
+| `scripts/` | Transcript watcher → JSONL logs; optional macOS LaunchAgents |
 
 ## Using the skills
 
 Open a folder under `skills/`, read `SKILL.md`, and copy or adapt it for Cursor, Claude Code, or similar tools.
 
-## Skill usage (Claude Code)
+## Skill usage tracking
 
-**What it does:** watches Claude Code session logs under `~/.claude/projects`, and each time it sees a skill path or skill name from this repo’s `skills/` list, it appends one line to **`~/.claude/ai-tracking/skill-usage.jsonl`**. A companion file **`skill-tracker-state.json`** remembers how far it read so it does not double-count.
+The watcher (`scripts/auto_track_skill_usage.py`) scans **session transcripts** on disk. When a line matches a skill from this repo’s `skills/` list (path or name), it appends one JSON line to a **JSONL** log. A small **state** file stores read offsets so lines are not double-counted.
 
-Each event stores an **`agent`** string (default **`claude-code`**) so you can run **several watchers** with different `--agent` values (e.g. `plan`, `opus`) if you split work that way—not the same as the LLM model name inside a session.
+| Topic | Meaning |
+| --- | --- |
+| **`--layout`** | Where transcripts are read and default log paths: **`claude-code`** (default) or **`cursor`**. |
+| **`--agent`** | Label stored on each event for filtering and dashboards—not the in-session LLM model name. Same layout can use different labels (e.g. two machines). |
 
-If you use **`CLAUDE_CONFIG_DIR`**, those paths live under that directory instead of `~/.claude`.
+If **`CLAUDE_CONFIG_DIR`** is set, Claude-side paths use that tree instead of `~/.claude`.
 
-### Run it (three steps)
+### Claude Code (default)
 
-From your clone of this repo:
+Transcripts: `projects/` under your Claude config (default `~/.claude/projects/`).  
+Log + state (default): `~/.claude/ai-tracking/skill-usage.jsonl` and `skill-tracker-state.json`.
 
 ```bash
 pip install -r dashboard/requirements.txt
@@ -35,55 +39,73 @@ python scripts/auto_track_skill_usage.py --once
 python scripts/auto_track_skill_usage.py --interval-seconds 5
 ```
 
-Optional: **`--agent YOUR_LABEL`** on both lines (default is `claude-code`). Leave the second command running while you work; stop with **Ctrl+C**.
+Optional **`--agent LABEL`** on both commands (default label: **`claude-code`**). Leave the interval process running; stop with **Ctrl+C**.
 
-Then open the charts:
+### Cursor (second process)
+
+Uses **`--layout cursor`**, reads under `~/.cursor/projects/**/agent-transcripts/`, and writes defaults under **`~/.cursor/ai-tracking/`**. Use a **distinct** **`--agent`** (e.g. **`cursor`**) so merged dashboard data stays separable.
+
+```bash
+python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --once
+python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --interval-seconds 5
+```
+
+Only **one** process should append to a given JSONL path.
+
+### Dashboard
 
 ```bash
 streamlit run dashboard/app.py
 ```
 
-The app expects the log at **`~/.claude/ai-tracking/skill-usage.jsonl`** unless you change the path in the sidebar.
+- **Primary log path** defaults to the Claude JSONL; add **`~/.cursor/ai-tracking/skill-usage.jsonl`** under **Additional log paths** to combine streams.
+- **Compare agents**: summary per `agent` label and a grouped chart when at least two agents appear in the filtered data.
 
-### Tracking Cursor (optional)
+### macOS LaunchAgents (optional)
 
-The default watcher is for **Claude Code**. For **Cursor**, run a **second** process with **`--layout cursor`** (separate log under `~/.cursor/ai-tracking/`). Use **`--agent cursor`** (or any label) so the dashboard can tell the two streams apart:
+Install **once per layout** (separate jobs, separate logs):
 
 ```bash
-python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --interval-seconds 5
+python scripts/install_launch_agent.py
+python scripts/install_launch_agent.py --layout cursor
 ```
 
-One-off ingest: add **`--once`**. Do **not** run two processes that write the **same** JSONL.
+Defaults: labels **`com.panda.skills.claude-code`** and **`com.panda.skills.cursor`**; agents **`claude-code`** and **`cursor`**. Uninstall:
 
-In the **dashboard**, point the primary path or **Additional log paths** at **`~/.cursor/ai-tracking/skill-usage.jsonl`** when you want to see Cursor events (alone or next to the Claude file).
+```bash
+python scripts/uninstall_launch_agent.py
+python scripts/uninstall_launch_agent.py --label com.panda.skills.cursor
+```
 
-Manual test line for the Cursor log: add **`--log-path ~/.cursor/ai-tracking/skill-usage.jsonl --agent cursor`** to `log_skill_event.py`.
+Legacy label: **`com.panda.skills.tracker`**.  
+The plist uses the **same Python** as the one that ran the installer (`sys.executable`); reinstall with your preferred interpreter if needed.
 
-### Optional extras
+### Session rules (“start tracking?”)
 
-- **Test one event:**  
-  `python scripts/log_skill_event.py --skill-name brainstorming`
-- **macOS login autostart:**  
-  `python scripts/install_launch_agent.py` — Claude Code (label **`com.panda.skills.claude-code`**).  
-  `python scripts/install_launch_agent.py --layout cursor` — Cursor (label **`com.panda.skills.cursor`**). Run **both** for side-by-side logs; each plist passes **`--layout`** only for Cursor.  
-  Uninstall: `python scripts/uninstall_launch_agent.py` and `python scripts/uninstall_launch_agent.py --label com.panda.skills.cursor`  
-  Legacy plist: `python scripts/uninstall_launch_agent.py --label com.panda.skills.tracker`
-- **Nudge your agent when tracking is off:** copy `rules/claude-code/skill-tracking-session-offer.md` → `~/.claude/rules/` (and optionally `rules/skill-tracking-session-offer.mdc` → `~/.cursor/rules/` for Cursor). Those rules run **`pgrep -f auto_track_skill_usage.py`** first and only ask to start tracking if nothing is running. Set **`PANDA_SKILLS_ROOT`** to this repo if the agent should run scripts by path.
+Copy **`rules/claude-code/skill-tracking-session-offer.md`** → **`~/.claude/rules/`**, and optionally **`rules/skill-tracking-session-offer.mdc`** → **`~/.cursor/rules/`**.
 
-### `PANDA_SKILLS_ROOT` and the “start tracking?” question
+Behavior (high level): **`pgrep -f auto_track_skill_usage.py`** — if a watcher is already running, **do not** ask or start another. If not running, offer to start the interval watcher. If the skill JSONL is **missing or empty**, the rule also offers a one-time **`--once`** backfill before starting the long-running process.
 
-**`PANDA_SKILLS_ROOT`** is optional: the **absolute path to this repo** (the folder that contains `scripts/`). You don’t need it when you run commands from inside the clone.
+Set **`PANDA_SKILLS_ROOT`** to the **absolute path** of this repo when the agent should resolve `scripts/` without your working directory being the clone.
 
-**Launch Agent vs that question:** launchd starts the watcher at login. The **session rules** check **`pgrep`** first; if a process exists, the agent should **not** ask to start tracking.
+If LaunchAgents are installed, **`pgrep`** is usually satisfied at login and the nudge does not appear.
 
-### If something looks wrong
+### Other scripts
 
-- **Dashboard empty:** run **`--once`**, then confirm the JSONL file exists.
-- **No new lines:** keep the watcher running; transcripts must be under **`~/.claude/projects`** unless you passed **`--transcripts-root`**.
-- **Start counts over:** delete **`skill-usage.jsonl`** and **`skill-tracker-state.json`**, then run **`--once`** again.
-- **Agent said yes but no watcher:** set **`PANDA_SKILLS_ROOT`** or run from inside the clone. Check **`~/.claude/ai-tracking/watcher-nohup.log`** if the session rule used **`nohup`**.
+- Smoke event: `python scripts/log_skill_event.py --skill-name brainstorming`  
+  For the Cursor log explicitly: add **`--log-path`** (expanded path to that layout’s JSONL) and **`--agent`** matching your watcher.
 
-Where Claude stores transcripts: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
+### Troubleshooting
+
+| Issue | What to try |
+| --- | --- |
+| Empty dashboard | Run **`--once`**; confirm the JSONL path in the sidebar exists and transcripts contain skill references. |
+| No new lines | Keep the interval watcher running; confirm transcript roots (`--transcripts-root` if non-default). |
+| Rebuild counts from scratch | Delete **`skill-usage.jsonl`** and **`skill-tracker-state.json`** for that layout, then **`--once`**. |
+| “Yes” but no watcher | Use **`PANDA_SKILLS_ROOT`** or run from the repo root; inspect **`watcher-nohup.log`** under the same **`ai-tracking/`** directory if the rule started **`nohup`**. |
+| launchd job errors | Check **`skill-tracker-launchd.out.log`** / **`.err.log`** next to that layout’s JSONL. |
+
+Claude transcript layout: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 
 ### Screenshot
 
