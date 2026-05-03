@@ -1,5 +1,5 @@
 ---
-description: At the start of a new Cursor chat, offer to start Claude Code Panda skill-usage tracking.
+description: Offer Claude Code Panda skill tracking only when no watcher is already running.
 alwaysApply: true
 ---
 
@@ -7,10 +7,29 @@ alwaysApply: true
 
 When this is a **new agent chat** in Cursor (first assistant turn), **before** substantive work:
 
-1. **Ask once** whether to start **Panda Skills** usage tracking for **Claude Code** (`auto_track_skill_usage.py` uses the **default Claude Code layout**: `~/.claude/projects` transcripts → `~/.claude/ai-tracking/skill-usage.jsonl`).
-2. **Launchd**: if they use macOS auto-start, the plist label is **`com.panda.skills.claude-code`**. To enable after install: `launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.panda.skills.claude-code.plist"`. To check: `launchctl print "gui/$(id -u)/com.panda.skills.claude-code"` (errors may print to `~/.claude/ai-tracking/skill-tracker-launchd.err.log`). Avoid a **second** duplicate watcher writing the same JSONL.
-3. **If they say yes**, run the watcher **in the background**. Resolve `--repo` from `git remote get-url origin` basename or the workspace folder name.
-4. **Script path**: use `$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py` when set; otherwise locate `scripts/auto_track_skill_usage.py` under their Panda Skills checkout (ask once if unclear).
-5. If they decline or tracking is already running, **do not** ask again in the same thread unless they ask.
+## 1. Check if tracking is already running (do this first)
 
-Skip this prompt when the user’s first message already answers tracking (e.g. “start skill tracker”, “no tracker”).
+Run:
+
+```bash
+pgrep -f auto_track_skill_usage.py
+```
+
+- If this prints **one or more PIDs**, a watcher is already running (terminal or Launch Agent **`com.panda.skills.claude-code`**). **Do not ask** about starting tracking. **Do not** start another watcher. Continue with the user’s task.
+- If it prints **nothing**, go to step 2.
+
+If `pgrep` is unavailable, skip the check and go to step 2.
+
+## 2. Only if no watcher — ask once
+
+Ask whether to start **Panda Skills** usage tracking for Claude Code (`auto_track_skill_usage.py` → `~/.claude/ai-tracking/skill-usage.jsonl` by default).
+
+## 3. If they say yes
+
+Run the watcher **in the background**. Use `$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py` when set; otherwise locate `scripts/auto_track_skill_usage.py` under their Panda Skills clone. Set `--repo` from `git remote` basename or workspace folder name.
+
+## 4. If they decline
+
+**Do not** ask again in the same thread unless they ask.
+
+Skip steps 1–2 if the user’s first message already answers tracking (e.g. “start skill tracker”, “no tracker”).
