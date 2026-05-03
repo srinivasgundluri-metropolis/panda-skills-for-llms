@@ -20,7 +20,19 @@ If `pgrep` is missing, go to step 2.
 
 ## 2. Only if no watcher — ask once
 
-Ask whether to start **Panda Skills** tracking for Claude Code.
+**Skill log path** (for empty check):
+
+- If **`CLAUDE_CONFIG_DIR`** is set: **`$CLAUDE_CONFIG_DIR/ai-tracking/skill-usage.jsonl`**
+- Else: **`~/.claude/ai-tracking/skill-usage.jsonl`**
+
+**Empty check** (e.g.):
+
+```bash
+CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+test -s "$CC_HOME/ai-tracking/skill-usage.jsonl" && echo has_events || echo empty_or_missing
+```
+
+If **`empty_or_missing`**, ask in one go: start the **interval** watcher **and** whether to run **`--once`** backfill (recommended so past transcripts show in the dashboard). If the log **already has events**, only ask to start the watcher.
 
 ## 3. If they say yes — run Bash and verify
 
@@ -33,19 +45,30 @@ If neither exists, say the user must `export PANDA_SKILLS_ROOT=/path/to/clone` o
 
 **Optional `--agent`:** only if the user gives a label (e.g. `plan`); otherwise omit (default **`claude-code`**).
 
+**Backfill** only if they agreed in step 2:
+
+```bash
+CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+mkdir -p "$CC_HOME/ai-tracking"
+python3 "<SCRIPT>" --once
+```
+
+(Add **`--agent <label>`** after `<SCRIPT>` when needed.) If they declined backfill, skip this block.
+
 **Start** (replace `<SCRIPT>` with the resolved path):
 
 ```bash
-mkdir -p ~/.claude/ai-tracking
+CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+mkdir -p "$CC_HOME/ai-tracking"
 nohup python3 "<SCRIPT>" --interval-seconds 5 \
-  >> ~/.claude/ai-tracking/watcher-nohup.log 2>&1 &
+  >> "$CC_HOME/ai-tracking/watcher-nohup.log" 2>&1 &
 sleep 1
 pgrep -f auto_track_skill_usage.py
 ```
 
 (Add **`--agent <label>`** after `<SCRIPT>` when needed.)
 
-Report **success with PID** or **failure** after `tail -20 ~/.claude/ai-tracking/watcher-nohup.log`.
+Report **success with PID** or **failure** after **`tail -20 "$CC_HOME/ai-tracking/watcher-nohup.log"`**.
 
 ## 4. If they decline
 

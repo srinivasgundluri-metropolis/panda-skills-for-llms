@@ -15,7 +15,24 @@ If `pgrep` does not exist, skip to step 2.
 
 ## 2. Only if no watcher — ask once
 
-Ask whether to start **Panda Skills** usage tracking for Claude Code.
+**Resolve the skill log path** (for the empty check and for telling the user where data goes):
+
+- If **`CLAUDE_CONFIG_DIR`** is set: **`$CLAUDE_CONFIG_DIR/ai-tracking/skill-usage.jsonl`**
+- Else: **`~/.claude/ai-tracking/skill-usage.jsonl`**
+
+Check whether the log already has content, e.g.:
+
+```bash
+CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+test -s "$CC_HOME/ai-tracking/skill-usage.jsonl" && echo has_events || echo empty_or_missing
+```
+
+If the result is **`empty_or_missing`**, include in the same ask (or a clear follow-up before starting):
+
+- Whether to start the **interval** watcher, and
+- Whether to **backfill** existing transcripts once with **`--once`** (recommended when the log is empty so past sessions appear in the dashboard).
+
+If the log **already has content**, only ask whether to start the watcher (no need to push backfill unless they ask).
 
 ## 3. If they say yes — you must run Bash and confirm it started
 
@@ -29,21 +46,32 @@ Do **not** only “plan” to start the watcher—**execute** a shell command, t
 
 **Optional `--agent`:** if the user names a label (e.g. `plan`, `opus-session`), pass **`--agent <label>`**; otherwise omit it (watcher default is **`claude-code`**).
 
-**Start** (runs detached; logs errors to a file you can read):
+**Backfill (only if they agreed to it in step 2):** run **`--once`** in the foreground first, same resolved script path and optional **`--agent`**:
 
 ```bash
-mkdir -p ~/.claude/ai-tracking
+CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+mkdir -p "$CC_HOME/ai-tracking"
+python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" --once
+```
+
+(Add **`--agent <label>`** after the script path when needed.)
+
+**Start** the interval watcher (runs detached; logs stderr/stdout to **`watcher-nohup.log`** next to the JSONL):
+
+```bash
+CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+mkdir -p "$CC_HOME/ai-tracking"
 nohup python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" \
   --interval-seconds 5 \
-  >> ~/.claude/ai-tracking/watcher-nohup.log 2>&1 &
+  >> "$CC_HOME/ai-tracking/watcher-nohup.log" 2>&1 &
 sleep 1
 pgrep -f auto_track_skill_usage.py
 ```
 
-(Add **`--agent <label>`** before `--interval-seconds` when the user asked for a specific agent label.)
+(Add **`--agent <label>`** before `--interval-seconds` when the user asked for a specific agent label.) If they **declined** backfill, **omit** the **`--once`** block and only run the **nohup** lines.
 
-- If `pgrep` now shows a PID, tell the user **success** (mention `~/.claude/ai-tracking/watcher-nohup.log` if something looks wrong later).
-- If **still no PID**, show **`tail -20 ~/.claude/ai-tracking/watcher-nohup.log`** and say start failed.
+- If `pgrep` now shows a PID, tell the user **success** (mention **`$CC_HOME/ai-tracking/watcher-nohup.log`** if something looks wrong later).
+- If **still no PID**, show **`tail -20 "$CC_HOME/ai-tracking/watcher-nohup.log"`** and say start failed.
 
 ## 4. Optional: macOS login autostart
 
