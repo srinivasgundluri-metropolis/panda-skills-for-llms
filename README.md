@@ -64,9 +64,9 @@ Manual test line for the Cursor log: add **`--log-path ~/.cursor/ai-tracking/ski
 - **Test one event:**  
   `python scripts/log_skill_event.py --skill-name brainstorming`
 - **macOS login autostart:**  
-  `python scripts/install_launch_agent.py`  
-  (optional: `--agent claude-code` — same default as the watcher.)  
-  Uninstall: `python scripts/uninstall_launch_agent.py`  
+  `python scripts/install_launch_agent.py` — Claude Code (label **`com.panda.skills.claude-code`**).  
+  `python scripts/install_launch_agent.py --layout cursor` — Cursor (label **`com.panda.skills.cursor`**). Run **both** for side-by-side logs; each plist passes **`--layout`** only for Cursor.  
+  Uninstall: `python scripts/uninstall_launch_agent.py` and `python scripts/uninstall_launch_agent.py --label com.panda.skills.cursor`  
   Legacy plist: `python scripts/uninstall_launch_agent.py --label com.panda.skills.tracker`
 - **Nudge your agent when tracking is off:** copy `rules/claude-code/skill-tracking-session-offer.md` → `~/.claude/rules/` (and optionally `rules/skill-tracking-session-offer.mdc` → `~/.cursor/rules/` for Cursor). Those rules run **`pgrep -f auto_track_skill_usage.py`** first and only ask to start tracking if nothing is running. Set **`PANDA_SKILLS_ROOT`** to this repo if the agent should run scripts by path.
 

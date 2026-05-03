@@ -13,7 +13,9 @@ def main() -> None:
     parser.add_argument(
         "--label",
         default="com.panda.skills.claude-code",
-        help="launchd label (default: com.panda.skills.claude-code). Use com.panda.skills.tracker to remove the legacy Cursor plist.",
+        help="launchd label (default: com.panda.skills.claude-code). "
+        "Use com.panda.skills.cursor for the Cursor watcher. "
+        "Use com.panda.skills.tracker to remove the legacy plist.",
     )
     args = parser.parse_args()
 
