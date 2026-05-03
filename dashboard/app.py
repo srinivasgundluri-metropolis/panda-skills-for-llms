@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 
@@ -143,6 +144,85 @@ col1.metric("Total invocations", f"{len(filtered):,}")
 col2.metric("Unique skills", f"{filtered['skill_name'].nunique():,}")
 col3.metric("Unique sessions", f"{filtered['session_id'].nunique():,}")
 col4.metric("Unique agents", f"{filtered['agent'].nunique():,}")
+
+st.subheader("Compare agents")
+st.caption(
+    "Each **agent** value comes from the watcher’s `--agent` label (or defaults like `claude-code`). "
+    "Run separate watchers or merge logs to compare streams—for example `claude-code` vs `cursor`, "
+    "or two machines exporting JSONL into **Additional log paths**."
+)
+_agent_summary = (
+    filtered.groupby("agent", as_index=False)
+    .agg(
+        invocations=("skill_name", "size"),
+        unique_skills=("skill_name", "nunique"),
+        unique_sessions=("session_id", "nunique"),
+    )
+    .sort_values("invocations", ascending=False)
+)
+_agent_summary = _agent_summary.assign(
+    invocations_per_session=_agent_summary["invocations"]
+    / _agent_summary["unique_sessions"].replace(0, pd.NA),
+    skills_per_session=_agent_summary["unique_skills"]
+    / _agent_summary["unique_sessions"].replace(0, pd.NA),
+)
+_display = _agent_summary.copy()
+for c in ("invocations_per_session", "skills_per_session"):
+    _display[c] = _display[c].round(2)
+st.dataframe(
+    _display.rename(
+        columns={
+            "invocations": "Invocations",
+            "unique_skills": "Distinct skills",
+            "unique_sessions": "Sessions",
+            "invocations_per_session": "Invocations / session",
+            "skills_per_session": "Distinct skills / session",
+        }
+    ),
+    use_container_width=True,
+    hide_index=True,
+)
+
+if filtered["agent"].nunique() >= 2:
+    top_n_skills = 12
+    top_skill_names = (
+        filtered.groupby("skill_name")
+        .size()
+        .nlargest(top_n_skills)
+        .index.tolist()
+    )
+    _counts = (
+        filtered[filtered["skill_name"].isin(top_skill_names)]
+        .groupby(["skill_name", "agent"], as_index=False)
+        .size()
+        .rename(columns={"size": "invocations"})
+    )
+    fig = px.bar(
+        _counts,
+        y="skill_name",
+        x="invocations",
+        color="agent",
+        barmode="group",
+        orientation="h",
+        labels={
+            "skill_name": "Skill",
+            "invocations": "Invocations",
+            "agent": "Agent",
+        },
+        title=f"Top {top_n_skills} skills — invocations by agent (current filters)",
+    )
+    fig.update_layout(
+        yaxis={"categoryorder": "total ascending"},
+        legend_title_text="Agent",
+        margin={"l": 8, "r": 8, "t": 40, "b": 8},
+        height=420,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info(
+        "Add a second **agent** label in your data to see grouped bars here—for example run another "
+        "watcher with `--agent plan` or merge a second JSONL that used a different `--agent`."
+    )
 
 st.subheader("Today")
 today = filtered["timestamp"].max().date()
