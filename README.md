@@ -1,166 +1,74 @@
 # Panda Skills for LLMs
 
-**Lazy like pandas. Efficient like pros.** Reusable skills that turn prompt effort into reliable LLM workflows.
+Reusable **skills** (prompt workflows) for coding agents—copy them into your setup or contribute new ones.
 
-This is a **public, community-maintained collection** that anyone can use, fork, and improve.
+## What’s in this repo
 
-## What this repo is
-
-- A curated set of practical agent skills you can copy into your own environment
-- A starting point for teams who want shared, reusable skill workflows
-- A place for community contributions and iterative improvements
-
-## Repository layout
-
-- `skills/`: reusable skill definitions for agent workflows
-- `rules/`: reusable policy/rule files (includes optional Claude Code session prompts under `rules/claude-code/`)
-- `templates/spec-driven/`: PRD/UI/TECH/RFC/ADR/traceability/release templates
-- `templates/tdd/`: test planning and regression checklist templates
-- `dashboard/`: Streamlit analytics app for **Claude Code** skill usage JSONL
-- `scripts/`: skill usage watcher, log helper, macOS launchd installer
-
-## Design principles
-
-- LLM-agnostic: content should work regardless of the underlying model
-- Runtime-flexible: adapt to Cursor, Claude-style agents, or similar tooling
-- Reusable by default: prefer templates and composable workflows over one-off prompts
-- Contributor-friendly: keep docs clear, practical, and easy to extend
-
-## How to use
-
-- Copy or adapt the `skills/`, `rules/`, and `templates/` content into your agent setup
-- Adjust prompts/instructions for your tooling and team conventions
-- Submit improvements back via pull requests
-
-## Skill usage tracking (Claude Code → JSONL → dashboard)
-
-This answers: **“Which skills did Claude Code actually use, and when?”** It does **not** read your whole transcript—only lines that reference a skill path or a known skill name from `skills/`.
-
-| Piece | What it does |
+| Folder | Purpose |
 | --- | --- |
-| **Watcher** | `scripts/auto_track_skill_usage.py` tails **Claude Code** session JSONL under `~/.claude/projects`, appends one JSON line per detected skill hit. |
-| **Logs** | `~/.claude/ai-tracking/skill-usage.jsonl` (and `skill-tracker-state.json` for offsets). Honors **`CLAUDE_CONFIG_DIR`**. |
-| **Dashboard** | `streamlit run dashboard/app.py` reads that JSONL (and optional extra paths you paste in). |
+| `skills/` | Skill definitions (`SKILL.md` per skill) |
+| `rules/` | Optional agent rules (e.g. Claude Code prompts in `rules/claude-code/`) |
+| `templates/` | Spec and TDD templates |
+| `dashboard/` | Small **Streamlit** app to chart skill usage |
+| `scripts/` | Watcher that reads Claude Code transcripts and writes usage logs |
 
-Set a stable label for your work (replace `YOUR_REPO` with a short name, or use your git remote name):
+## Using the skills
+
+Open a folder under `skills/`, read `SKILL.md`, and copy or adapt it for Cursor, Claude Code, or similar tools.
+
+## Skill usage (Claude Code)
+
+**What it does:** watches Claude Code session logs under `~/.claude/projects`, and each time it sees a skill path or skill name from this repo’s `skills/` list, it appends one line to **`~/.claude/ai-tracking/skill-usage.jsonl`**. A companion file **`skill-tracker-state.json`** remembers how far it read so it does not double-count.
+
+If you use **`CLAUDE_CONFIG_DIR`**, those paths live under that directory instead of `~/.claude`.
+
+### Run it (three steps)
+
+From your clone of this repo, with **`YOUR_PROJECT`** replaced by a short name (e.g. your git repo name):
 
 ```bash
-export PANDA_SKILLS_ROOT="/absolute/path/to/this/repo"   # optional but handy
-export REPO_LABEL="YOUR_REPO"   # used as --repo in examples below; e.g. my-app
+pip install -r dashboard/requirements.txt
+
+python scripts/auto_track_skill_usage.py --once --repo YOUR_PROJECT --model claude-code
+python scripts/auto_track_skill_usage.py --repo YOUR_PROJECT --model claude-code --interval-seconds 5
 ```
 
-### Paths (Claude Code)
+Leave the second command running while you work. Stop it with **Ctrl+C**.
 
-| | Location |
-| --- | --- |
-| **Transcripts (read)** | `~/.claude/projects/**/*.jsonl` (excludes `memory/`, `tool-results/`) |
-| **Events JSONL (write)** | `~/.claude/ai-tracking/skill-usage.jsonl` |
-| **Offset state** | `~/.claude/ai-tracking/skill-tracker-state.json` |
+Then open the charts:
 
-The watcher defaults to **Claude Code**; you do **not** need `--layout` unless you use the optional **`--layout cursor`** path for non-Claude agents (advanced).
-
-### Event format (one JSON object per line)
-
-```json
-{"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"YOUR_REPO","model":"claude-code"}
+```bash
+streamlit run dashboard/app.py
 ```
 
-### Quick start
+The app expects the log at **`~/.claude/ai-tracking/skill-usage.jsonl`** unless you change the path in the sidebar.
 
-1. **Install dashboard dependencies**
+### Optional extras
 
-   ```bash
-   pip install -r dashboard/requirements.txt
-   ```
+- **Test one event:**  
+  `python scripts/log_skill_event.py --skill-name brainstorming --repo YOUR_PROJECT --model claude-code`
+- **macOS login autostart:**  
+  `python scripts/install_launch_agent.py --repo YOUR_PROJECT --model claude-code`  
+  Uninstall: `python scripts/uninstall_launch_agent.py`  
+  If you ever used the old **`com.panda.skills.tracker`** job:  
+  `python scripts/uninstall_launch_agent.py --label com.panda.skills.tracker`
+- **Nudge your agent each session:** copy `rules/claude-code/skill-tracking-session-offer.md` → `~/.claude/rules/` (and optionally `rules/skill-tracking-session-offer.mdc` → `~/.cursor/rules/` for Cursor). Set **`PANDA_SKILLS_ROOT`** to this repo in your shell if the agent should run scripts by path.
 
-2. **Ingest history once, then keep watching**
+### If something looks wrong
 
-   From the repo root (or use `$PANDA_SKILLS_ROOT`):
+- **Dashboard empty:** run the `--once` line above, then confirm the JSONL file exists.
+- **No new lines:** make sure the watcher is still running; transcripts must be under **`~/.claude/projects`** unless you passed **`--transcripts-root`**.
+- **Start counts over:** delete **`skill-usage.jsonl`** and **`skill-tracker-state.json`**, then run **`--once`** again (old transcripts get scanned again).
 
-   ```bash
-   python scripts/auto_track_skill_usage.py --once --repo "$REPO_LABEL" --model claude-code
-   python scripts/auto_track_skill_usage.py --repo "$REPO_LABEL" --model claude-code --interval-seconds 5
-   ```
-
-3. **Open the dashboard**
-
-   ```bash
-   streamlit run dashboard/app.py
-   ```
-
-   Default log path in the sidebar: **`~/.claude/ai-tracking/skill-usage.jsonl`**. Use **Additional log paths** only if you want to merge another JSONL file (e.g. a second machine’s export).
-
-Transcript reference: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
-
-### Dashboard metrics
-
-- **Total invocations**: events matching current filters.
-- **Invocations today**: events on the latest calendar day in the filtered data (UTC by ingestion timestamps).
-- **Unique skills / sessions / repos**: distinct values in the filtered set.
+Where Claude stores transcripts: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 
 ### Screenshot
 
-![Panda Skills Analytics Full View](assets/skills-analytics-fullpage.png)
-
-### Manual log line (testing)
-
-```bash
-python scripts/log_skill_event.py \
-  --skill-name spec-driven-development \
-  --session-id demo-001 \
-  --repo "$REPO_LABEL" \
-  --model claude-code
-```
-
-### Optional: have the agent offer to start tracking every new session
-
-| Product | Copy this file | To |
-| --- | --- | --- |
-| **Cursor (IDE)** | `rules/skill-tracking-session-offer.mdc` | `~/.cursor/rules/` |
-| **Claude Code** | `rules/claude-code/skill-tracking-session-offer.md` | `~/.claude/rules/` |
-
-Set `PANDA_SKILLS_ROOT` in your shell profile so the agent can run `"$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py"` without guessing.
-
-### Auto-start on macOS (Claude Code watcher)
-
-Installs **`com.panda.skills.claude-code`**: runs `auto_track_skill_usage.py` with **default Claude Code layout** (no `--layout` in plist). Stdout/stderr go under **`~/.claude/ai-tracking/`** next to your skill JSONL.
-
-```bash
-python scripts/install_launch_agent.py --repo "$REPO_LABEL" --model claude-code
-```
-
-Uninstall:
-
-```bash
-python scripts/uninstall_launch_agent.py
-```
-
-If you previously installed **`com.panda.skills.tracker`** (legacy Cursor job), remove it explicitly:
-
-```bash
-python scripts/uninstall_launch_agent.py --label com.panda.skills.tracker
-```
-
-### Troubleshooting
-
-- **Empty dashboard**: run `--once`, confirm `~/.claude/ai-tracking/skill-usage.jsonl` exists and the sidebar path matches.
-- **No new events**: confirm the watcher is running; use `--transcripts-root` only if transcripts are not under `~/.claude/projects`.
-- **Reset and re-scan**: delete `skill-usage.jsonl` **and** `skill-tracker-state.json`, then run `--once` again (re-emits from existing transcripts).
-- **Duplicate launchd jobs**: unload the old label before installing the new one (see uninstall command above).
+![Panda Skills Analytics](assets/skills-analytics-fullpage.png)
 
 ## Contributing
 
-Contributions are welcome.
-
-- Add new high-quality skills with clear scope and usage guidance
-- Improve existing skill prompts, safety checks, and examples
-- Keep skills focused, testable, and easy to understand
-
-When opening a PR, include:
-
-- What changed and why
-- How you validated the skill behavior
-- Any compatibility notes (Cursor/Claude/tooling assumptions)
+Open a PR with a short **what / why**, how you tested, and any tooling assumptions.
 
 ## License
 
