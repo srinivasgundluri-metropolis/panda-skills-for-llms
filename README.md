@@ -169,6 +169,4 @@ When opening a PR, include:
 
 ## License
 
-License terms are **pending internal review**. Until published otherwise, treat this repository as **not open source**—no permission is granted to use, copy, or distribute the contents.
-
-Contact your Metropolis engineering or legal contact for questions.
+MIT — see `LICENSE`.
