@@ -9,9 +9,6 @@ import pandas as pd
 import streamlit as st
 
 
-DEFAULT_CURSOR_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage.jsonl"
-
-
 def default_claude_skill_usage_log_path() -> Path:
     """Matches auto_track_skill_usage.py defaults for layout=claude-code."""
     override = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
@@ -19,7 +16,7 @@ def default_claude_skill_usage_log_path() -> Path:
     return root / "ai-tracking" / "skill-usage.jsonl"
 
 
-DEFAULT_PRIMARY_LOG_PATH = default_claude_skill_usage_log_path()
+DEFAULT_LOG_PATH = default_claude_skill_usage_log_path()
 
 
 def _parse_timestamp(value: str) -> datetime | None:
@@ -79,23 +76,22 @@ def _parse_extra_log_paths(raw: str) -> list[Path]:
 st.set_page_config(page_title="Panda Skills Analytics", layout="wide")
 st.title("Panda Skills Analytics")
 st.caption(
-    "Primary log defaults to Claude Code (~/.claude/ai-tracking/). Add Cursor’s JSONL "
-    "below to merge both."
+    "Claude Code skill usage from JSONL (default: ~/.claude/ai-tracking/skill-usage.jsonl). "
+    "Optionally merge more logs below."
 )
 
 with st.sidebar:
     st.header("Data source")
-    path_input = st.text_input("Primary log file path", str(DEFAULT_PRIMARY_LOG_PATH))
+    path_input = st.text_input("Primary log file path", str(DEFAULT_LOG_PATH))
     log_path = Path(path_input).expanduser()
-    cursor_default_log = DEFAULT_CURSOR_LOG_PATH
     merge_help = (
-        "Optional. Merge Cursor (or other) JSONL with the primary Claude log. "
-        f"Typical Cursor path: `{cursor_default_log}`."
+        "Optional. One path per line to merge into the same charts (e.g. a second machine’s export)."
     )
     extra_raw = st.text_area(
         "Additional log paths (one per line)",
-        value=str(cursor_default_log) if cursor_default_log.exists() else "",
+        value="",
         height=100,
+        placeholder="# ~/.claude/ai-tracking/skill-usage-other.jsonl",
         help=merge_help,
     )
     extra_paths = _parse_extra_log_paths(extra_raw)

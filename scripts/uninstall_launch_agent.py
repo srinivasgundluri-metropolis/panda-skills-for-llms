@@ -7,8 +7,14 @@ from pathlib import Path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Uninstall launchd service for auto skill tracking.")
-    parser.add_argument("--label", default="com.panda.skills.tracker")
+    parser = argparse.ArgumentParser(
+        description="Uninstall launchd service for Claude Code skill tracking (com.panda.skills.claude-code by default)."
+    )
+    parser.add_argument(
+        "--label",
+        default="com.panda.skills.claude-code",
+        help="launchd label (default: com.panda.skills.claude-code). Use com.panda.skills.tracker to remove the legacy Cursor plist.",
+    )
     args = parser.parse_args()
 
     plist_path = Path.home() / "Library" / "LaunchAgents" / f"{args.label}.plist"

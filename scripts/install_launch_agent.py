@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -9,6 +10,13 @@ from pathlib import Path
 
 def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
+
+
+def default_claude_ai_tracking_dir() -> Path:
+    """Log directory for launchd stdout/stderr (matches Claude Code skill logs)."""
+    override = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
+    root = Path(override).expanduser() if override else Path.home() / ".claude"
+    return root / "ai-tracking"
 
 
 def plist_content(
@@ -31,8 +39,6 @@ def plist_content(
   <array>
     <string>{python_bin}</string>
     <string>{tracker_script}</string>
-    <string>--layout</string>
-    <string>cursor</string>
     <string>--repo</string>
     <string>{repo}</string>
     <string>--model</string>
@@ -54,10 +60,16 @@ def plist_content(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Install launchd service for auto skill tracking.")
-    parser.add_argument("--label", default="com.panda.skills.tracker")
+    parser = argparse.ArgumentParser(
+        description="Install launchd service for Claude Code skill usage tracking (auto_track_skill_usage.py, default layout)."
+    )
+    parser.add_argument(
+        "--label",
+        default="com.panda.skills.claude-code",
+        help="launchd label (default: com.panda.skills.claude-code)",
+    )
     parser.add_argument("--repo", default="panda-skills-for-llms")
-    parser.add_argument("--model", default="unknown")
+    parser.add_argument("--model", default="claude-code")
     parser.add_argument("--interval-seconds", type=int, default=5)
     parser.add_argument(
         "--tracker-script",
@@ -68,7 +80,7 @@ def main() -> None:
 
     launch_agents = Path.home() / "Library" / "LaunchAgents"
     launch_agents.mkdir(parents=True, exist_ok=True)
-    logs_dir = Path.home() / ".cursor" / "ai-tracking"
+    logs_dir = default_claude_ai_tracking_dir()
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     plist_path = launch_agents / f"{args.label}.plist"
@@ -93,7 +105,7 @@ def main() -> None:
     run(["launchctl", "load", str(plist_path)])
 
     print(f"Installed and loaded: {plist_path}")
-    print("Service will auto-start on login.")
+    print("Runs Claude Code skill tracking at login (writes under ~/.claude/ai-tracking/ by default).")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,8 @@ When this is a **new Claude Code session** (your first reply after the session b
    (`--layout claude-code` is optional; it is the script default.)
 
 3. **Before starting**, check that another `auto_track_skill_usage.py` is not already running for the same log (`pgrep -af auto_track_skill_usage`); avoid duplicates.
-4. If they decline or tracking is already active, **do not** ask again unless they request it.
+4. **macOS auto-start (optional):** from the repo, `python scripts/install_launch_agent.py --repo … --model claude-code` installs **`com.panda.skills.claude-code`** (logs under `~/.claude/ai-tracking/`).
+5. If they decline or tracking is already active, **do not** ask again unless they request it.
 
 Skip if their first message already specifies tracking on or off.
+

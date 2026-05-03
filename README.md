@@ -13,11 +13,11 @@ This is a **public, community-maintained collection** that anyone can use, fork,
 ## Repository layout
 
 - `skills/`: reusable skill definitions for agent workflows
-- `rules/`: reusable policy/rule files to guide agent behavior (includes optional Cursor `.mdc` and Claude Code reminders under `rules/claude-code/`)
+- `rules/`: reusable policy/rule files (includes optional Claude Code session prompts under `rules/claude-code/`)
 - `templates/spec-driven/`: PRD/UI/TECH/RFC/ADR/traceability/release templates
 - `templates/tdd/`: test planning and regression checklist templates
-- `dashboard/`: Streamlit analytics app for skill usage
-- `scripts/`: utility scripts (for example, event logging)
+- `dashboard/`: Streamlit analytics app for **Claude Code** skill usage JSONL
+- `scripts/`: skill usage watcher, log helper, macOS launchd installer
 
 ## Design principles
 
@@ -32,15 +32,15 @@ This is a **public, community-maintained collection** that anyone can use, fork,
 - Adjust prompts/instructions for your tooling and team conventions
 - Submit improvements back via pull requests
 
-## Skill usage tracking (transcripts → JSONL → dashboard)
+## Skill usage tracking (Claude Code → JSONL → dashboard)
 
-This answers: **“Which skills did my agents actually use, and when?”** It does **not** read your whole chat—only lines that reference a skill path or a known skill name from `skills/`.
+This answers: **“Which skills did Claude Code actually use, and when?”** It does **not** read your whole transcript—only lines that reference a skill path or a known skill name from `skills/`.
 
 | Piece | What it does |
 | --- | --- |
-| **Watcher** | `scripts/auto_track_skill_usage.py` tails transcript files, appends one JSON line per detected skill hit. |
-| **Logs** | JSONL files you can back up, merge, or feed to other tools. |
-| **Dashboard** | `streamlit run dashboard/app.py` charts and filters those events. |
+| **Watcher** | `scripts/auto_track_skill_usage.py` tails **Claude Code** session JSONL under `~/.claude/projects`, appends one JSON line per detected skill hit. |
+| **Logs** | `~/.claude/ai-tracking/skill-usage.jsonl` (and `skill-tracker-state.json` for offsets). Honors **`CLAUDE_CONFIG_DIR`**. |
+| **Dashboard** | `streamlit run dashboard/app.py` reads that JSONL (and optional extra paths you paste in). |
 
 Set a stable label for your work (replace `YOUR_REPO` with a short name, or use your git remote name):
 
@@ -49,21 +49,20 @@ export PANDA_SKILLS_ROOT="/absolute/path/to/this/repo"   # optional but handy
 export REPO_LABEL="YOUR_REPO"   # used as --repo in examples below; e.g. my-app
 ```
 
-### Where files go (Claude Code vs Cursor)
+### Paths (Claude Code)
 
-The watcher defaults to **Claude Code**. Use **`--layout cursor`** for Cursor.
+| | Location |
+| --- | --- |
+| **Transcripts (read)** | `~/.claude/projects/**/*.jsonl` (excludes `memory/`, `tool-results/`) |
+| **Events JSONL (write)** | `~/.claude/ai-tracking/skill-usage.jsonl` |
+| **Offset state** | `~/.claude/ai-tracking/skill-tracker-state.json` |
 
-| Runtime | Watcher flag | Transcripts (default) | Events JSONL | Offset state (no double-count) |
-| --- | --- | --- | --- | --- |
-| **Claude Code** | *(default — omit flag or `--layout claude-code`)* | `~/.claude/projects/**/*.jsonl` (excludes `memory/`, `tool-results/`) | `~/.claude/ai-tracking/skill-usage.jsonl` | `~/.claude/ai-tracking/skill-tracker-state.json` |
-| **Cursor** | **`--layout cursor`** | `~/.cursor/projects/**/agent-transcripts/**/*.jsonl` | `~/.cursor/ai-tracking/skill-usage.jsonl` | `~/.cursor/ai-tracking/skill-tracker-state.json` |
-
-If you set **`CLAUDE_CONFIG_DIR`**, Claude’s paths are under that directory instead of `~/.claude`. Cursor and Claude use **separate** logs so you can run two watchers at once.
+The watcher defaults to **Claude Code**; you do **not** need `--layout` unless you use the optional **`--layout cursor`** path for non-Claude agents (advanced).
 
 ### Event format (one JSON object per line)
 
 ```json
-{"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"YOUR_REPO","model":"cursor"}
+{"timestamp":"2026-04-30T18:52:00Z","skill_name":"spec-driven-development","session_id":"abc123","repo":"YOUR_REPO","model":"claude-code"}
 ```
 
 ### Quick start
@@ -74,7 +73,7 @@ If you set **`CLAUDE_CONFIG_DIR`**, Claude’s paths are under that directory in
    pip install -r dashboard/requirements.txt
    ```
 
-2. **Ingest history once, then keep watching (Claude Code — default layout)**
+2. **Ingest history once, then keep watching**
 
    From the repo root (or use `$PANDA_SKILLS_ROOT`):
 
@@ -89,25 +88,9 @@ If you set **`CLAUDE_CONFIG_DIR`**, Claude’s paths are under that directory in
    streamlit run dashboard/app.py
    ```
 
-   By default the **primary** file is `~/.claude/ai-tracking/skill-usage.jsonl`.
+   Default log path in the sidebar: **`~/.claude/ai-tracking/skill-usage.jsonl`**. Use **Additional log paths** only if you want to merge another JSONL file (e.g. a second machine’s export).
 
-4. **Cursor (second process — does not touch Claude files)**
-
-   ```bash
-   python scripts/auto_track_skill_usage.py \
-     --layout cursor \
-     --repo "$REPO_LABEL" \
-     --model cursor \
-     --interval-seconds 5
-   ```
-
-   Omit `--log-path` / `--state-path` to keep defaults under `~/.cursor/ai-tracking/`.
-
-5. **See both tools in one dashboard**
-
-   Sidebar: **primary** = `~/.claude/ai-tracking/skill-usage.jsonl`, **Additional log paths** = `~/.cursor/ai-tracking/skill-usage.jsonl` (the UI prefills Cursor’s path when that file exists).
-
-Transcript layout reference: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
+Transcript reference: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 
 ### Dashboard metrics
 
@@ -126,36 +109,44 @@ python scripts/log_skill_event.py \
   --skill-name spec-driven-development \
   --session-id demo-001 \
   --repo "$REPO_LABEL" \
-  --model gpt-5.3-codex
+  --model claude-code
 ```
 
 ### Optional: have the agent offer to start tracking every new session
 
-Copy the versioned templates from this repo into your **global** config (not per-project), then new chats will be nudged to start the watcher if you want it.
-
 | Product | Copy this file | To |
 | --- | --- | --- |
-| **Cursor** | `rules/skill-tracking-session-offer.mdc` | `~/.cursor/rules/` (same filename; `alwaysApply: true` is already set) |
+| **Cursor (IDE)** | `rules/skill-tracking-session-offer.mdc` | `~/.cursor/rules/` |
 | **Claude Code** | `rules/claude-code/skill-tracking-session-offer.md` | `~/.claude/rules/` |
 
-Set `PANDA_SKILLS_ROOT` in your shell profile so the agent can run `"$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py"` without guessing. The rules only **prompt** the assistant; they do not start processes by themselves.
+Set `PANDA_SKILLS_ROOT` in your shell profile so the agent can run `"$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py"` without guessing.
 
-### Auto-start on macOS (Cursor watcher only)
+### Auto-start on macOS (Claude Code watcher)
 
-`install_launch_agent.py` installs a launchd job that runs the watcher with **`--layout cursor`** (Cursor transcripts and `~/.cursor/ai-tracking/` logs).
+Installs **`com.panda.skills.claude-code`**: runs `auto_track_skill_usage.py` with **default Claude Code layout** (no `--layout` in plist). Stdout/stderr go under **`~/.claude/ai-tracking/`** next to your skill JSONL.
 
 ```bash
-python scripts/install_launch_agent.py --repo "$REPO_LABEL" --model cursor
+python scripts/install_launch_agent.py --repo "$REPO_LABEL" --model claude-code
 ```
 
-Uninstall: `python scripts/uninstall_launch_agent.py`
+Uninstall:
+
+```bash
+python scripts/uninstall_launch_agent.py
+```
+
+If you previously installed **`com.panda.skills.tracker`** (legacy Cursor job), remove it explicitly:
+
+```bash
+python scripts/uninstall_launch_agent.py --label com.panda.skills.tracker
+```
 
 ### Troubleshooting
 
-- **Empty dashboard**: run `--once`, confirm the JSONL path in the sidebar exists and has lines.
-- **No new events**: confirm the watcher is running; for non-default transcript locations use `--transcripts-root`.
-- **Reset and re-scan**: delete the JSONL **and** the matching `skill-tracker-state.json` for that runtime, then run `--once` again (you will re-emit events for all matching lines in existing transcripts).
-- **Two Cursor watchers**: avoid running `launchd` and a manual Cursor watcher with the same log without intending duplicates.
+- **Empty dashboard**: run `--once`, confirm `~/.claude/ai-tracking/skill-usage.jsonl` exists and the sidebar path matches.
+- **No new events**: confirm the watcher is running; use `--transcripts-root` only if transcripts are not under `~/.claude/projects`.
+- **Reset and re-scan**: delete `skill-usage.jsonl` **and** `skill-tracker-state.json`, then run `--once` again (re-emits from existing transcripts).
+- **Duplicate launchd jobs**: unload the old label before installing the new one (see uninstall command above).
 
 ## Contributing
 
