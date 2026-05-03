@@ -52,7 +52,13 @@ The app expects the log at **`~/.claude/ai-tracking/skill-usage.jsonl`** unless 
   Uninstall: `python scripts/uninstall_launch_agent.py`  
   If you ever used the old **`com.panda.skills.tracker`** job:  
   `python scripts/uninstall_launch_agent.py --label com.panda.skills.tracker`
-- **Nudge your agent each session:** copy `rules/claude-code/skill-tracking-session-offer.md` → `~/.claude/rules/` (and optionally `rules/skill-tracking-session-offer.mdc` → `~/.cursor/rules/` for Cursor). Set **`PANDA_SKILLS_ROOT`** to this repo in your shell if the agent should run scripts by path.
+- **Nudge your agent each session:** copy `rules/claude-code/skill-tracking-session-offer.md` → `~/.claude/rules/` (and optionally `rules/skill-tracking-session-offer.mdc` → `~/.cursor/rules/` for Cursor). Those rules tell the assistant to *ask* whether to start tracking; they do not replace the watcher.
+
+### `PANDA_SKILLS_ROOT` and the “start tracking?” question
+
+**`PANDA_SKILLS_ROOT`** is an optional environment variable: the **absolute path to this repo** (the folder that contains `scripts/`). Set it in your shell profile if you want agents to run `python3 "$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py"` without you pasting the path each time. You don’t need it when you run the commands yourself from inside the clone.
+
+**Launch Agent vs that question:** **`install_launch_agent.py`** starts the watcher at login in the background. That is separate from the **session rule** above. If you installed both, Claude can **still ask** each new session—that prompt comes from the copied rule, not from launchd. You can answer **no** (watcher already running), **remove** the rule from `~/.claude/rules/`, or edit the rule so it skips when a watcher is already running.
 
 ### If something looks wrong
 
