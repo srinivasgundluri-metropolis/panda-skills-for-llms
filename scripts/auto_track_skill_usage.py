@@ -142,8 +142,7 @@ def process_new_lines(
     transcript_file: Path,
     old_offset: int,
     log_path: Path,
-    repo_name: str,
-    model_name: str,
+    agent_label: str,
     known_skills: set[str],
     layout: str,
 ) -> tuple[int, int]:
@@ -175,8 +174,7 @@ def process_new_lines(
                     "timestamp": utc_now_iso(),
                     "skill_name": skill,
                     "session_id": session_id,
-                    "repo": repo_name,
-                    "model": model_name,
+                    "agent": agent_label,
                     "source": "transcript-watcher",
                     "detection": detection,
                     "transcript_file": str(transcript_file),
@@ -191,8 +189,7 @@ def run_once(
     transcripts_root: Path,
     log_path: Path,
     state_path: Path,
-    repo_name: str,
-    model_name: str,
+    agent_label: str,
     known_skills: set[str],
     layout: str,
 ) -> int:
@@ -207,8 +204,7 @@ def run_once(
             transcript_file=transcript_file,
             old_offset=old_offset,
             log_path=log_path,
-            repo_name=repo_name,
-            model_name=model_name,
+            agent_label=agent_label,
             known_skills=known_skills,
             layout=layout,
         )
@@ -258,8 +254,14 @@ def build_parser() -> argparse.ArgumentParser:
             "~/.claude/ai-tracking/skill-tracker-state.json for claude-code."
         ),
     )
-    parser.add_argument("--repo", default="unknown", help="Repo/project label for events.")
-    parser.add_argument("--model", default="unknown", help="Model label for events.")
+    parser.add_argument(
+        "--agent",
+        default="claude-code",
+        help=(
+            "Agent label stored on each event (e.g. claude-code, plan, opus). "
+            "Use one value per watcher so the dashboard can filter; not tied to LLM model name."
+        ),
+    )
     parser.add_argument(
         "--skills-dir",
         default=str(DEFAULT_SKILLS_DIR),
@@ -312,8 +314,7 @@ def main() -> None:
             transcripts_root,
             log_path,
             state_path,
-            args.repo,
-            args.model,
+            args.agent,
             known_skills,
             layout,
         )
@@ -330,8 +331,7 @@ def main() -> None:
             transcripts_root,
             log_path,
             state_path,
-            args.repo,
-            args.model,
+            args.agent,
             known_skills,
             layout,
         )

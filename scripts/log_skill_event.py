@@ -28,8 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--skill-name", required=True, help="Skill name, e.g. spec-driven-development")
     parser.add_argument("--session-id", default="manual", help="Session identifier")
-    parser.add_argument("--repo", default="unknown", help="Repository/project name")
-    parser.add_argument("--model", default="unknown", help="Model identifier")
+    parser.add_argument(
+        "--agent",
+        default="claude-code",
+        help="Agent label on the event (default: claude-code).",
+    )
     parser.add_argument("--timestamp", default="", help="ISO timestamp (defaults to current UTC)")
     parser.add_argument(
         "--log-path",
@@ -50,8 +53,7 @@ def main() -> None:
         "timestamp": args.timestamp or utc_now_iso(),
         "skill_name": args.skill_name,
         "session_id": args.session_id,
-        "repo": args.repo,
-        "model": args.model,
+        "agent": args.agent,
     }
 
     log_path = Path(args.log_path).expanduser()

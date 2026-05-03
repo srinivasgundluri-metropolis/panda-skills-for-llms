@@ -27,27 +27,27 @@ Do **not** only “plan” to start the watcher—**execute** a shell command, t
 2. Otherwise **`$(git rev-parse --show-toplevel 2>/dev/null)/scripts/auto_track_skill_usage.py`** if you are inside a git clone and that file exists.
 3. Otherwise tell the user you need the **absolute path** to their Panda Skills repo (or they must `export PANDA_SKILLS_ROOT=...`) and **stop**—do not pretend the watcher started.
 
-**Resolve `--repo`:** from `git remote get-url origin` basename inside that repo, else `basename` of the repo root.
+**Optional `--agent`:** if the user names a label (e.g. `plan`, `opus-session`), pass **`--agent <label>`**; otherwise omit it (watcher default is **`claude-code`**).
 
-**Start** (runs detached from the tool; logs errors to a file you can read):
+**Start** (runs detached; logs errors to a file you can read):
 
 ```bash
 mkdir -p ~/.claude/ai-tracking
 nohup python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" \
-  --repo "<REPO_LABEL>" \
-  --model claude-code \
   --interval-seconds 5 \
   >> ~/.claude/ai-tracking/watcher-nohup.log 2>&1 &
 sleep 1
 pgrep -f auto_track_skill_usage.py
 ```
 
-- If `pgrep` now shows a PID, tell the user **success** (mention the log file `~/.claude/ai-tracking/watcher-nohup.log` if something looks wrong later).
-- If **still no PID**, show the user **`tail -20 ~/.claude/ai-tracking/watcher-nohup.log`** output and say start failed.
+(Add **`--agent <label>`** before `--interval-seconds` when the user asked for a specific agent label.)
+
+- If `pgrep` now shows a PID, tell the user **success** (mention `~/.claude/ai-tracking/watcher-nohup.log` if something looks wrong later).
+- If **still no PID**, show **`tail -20 ~/.claude/ai-tracking/watcher-nohup.log`** and say start failed.
 
 ## 4. Optional: macOS login autostart
 
-`python scripts/install_launch_agent.py --repo … --model claude-code` installs **`com.panda.skills.claude-code`**. After that, step 1 usually finds a PID and you skip asking.
+`python scripts/install_launch_agent.py` installs **`com.panda.skills.claude-code`**. After that, step 1 usually finds a PID and you skip asking.
 
 ## 5. If they decline
 

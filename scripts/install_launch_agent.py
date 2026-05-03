@@ -23,8 +23,7 @@ def plist_content(
     label: str,
     python_bin: str,
     tracker_script: str,
-    repo: str,
-    model: str,
+    agent: str,
     interval_seconds: int,
     stdout_path: str,
     stderr_path: str,
@@ -39,10 +38,8 @@ def plist_content(
   <array>
     <string>{python_bin}</string>
     <string>{tracker_script}</string>
-    <string>--repo</string>
-    <string>{repo}</string>
-    <string>--model</string>
-    <string>{model}</string>
+    <string>--agent</string>
+    <string>{agent}</string>
     <string>--interval-seconds</string>
     <string>{interval_seconds}</string>
   </array>
@@ -68,8 +65,11 @@ def main() -> None:
         default="com.panda.skills.claude-code",
         help="launchd label (default: com.panda.skills.claude-code)",
     )
-    parser.add_argument("--repo", default="panda-skills-for-llms")
-    parser.add_argument("--model", default="claude-code")
+    parser.add_argument(
+        "--agent",
+        default="claude-code",
+        help="Agent label passed to the watcher (default: claude-code).",
+    )
     parser.add_argument("--interval-seconds", type=int, default=5)
     parser.add_argument(
         "--tracker-script",
@@ -92,8 +92,7 @@ def main() -> None:
             label=args.label,
             python_bin=args.python_bin,
             tracker_script=args.tracker_script,
-            repo=args.repo,
-            model=args.model,
+            agent=args.agent,
             interval_seconds=max(1, args.interval_seconds),
             stdout_path=str(stdout_path),
             stderr_path=str(stderr_path),

@@ -31,17 +31,19 @@ Ask whether to start **Panda Skills** tracking for Claude Code.
 
 If neither exists, say the user must `export PANDA_SKILLS_ROOT=/path/to/clone` or open the clone as the workspace—**do not** claim the watcher started.
 
-**`--repo`:** from `git remote get-url origin` basename in that repo, else directory basename.
+**Optional `--agent`:** only if the user gives a label (e.g. `plan`); otherwise omit (default **`claude-code`**).
 
-**Start** (replace `<SCRIPT>` with the resolved path, `<REPO>` with repo label):
+**Start** (replace `<SCRIPT>` with the resolved path):
 
 ```bash
 mkdir -p ~/.claude/ai-tracking
-nohup python3 "<SCRIPT>" --repo "<REPO>" --model claude-code --interval-seconds 5 \
+nohup python3 "<SCRIPT>" --interval-seconds 5 \
   >> ~/.claude/ai-tracking/watcher-nohup.log 2>&1 &
 sleep 1
 pgrep -f auto_track_skill_usage.py
 ```
+
+(Add **`--agent <label>`** after `<SCRIPT>` when needed.)
 
 Report **success with PID** or **failure** after `tail -20 ~/.claude/ai-tracking/watcher-nohup.log`.
 

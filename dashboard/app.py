@@ -26,6 +26,12 @@ def _parse_timestamp(value: str) -> datetime | None:
         return None
 
 
+def _event_agent(event: dict) -> str:
+    """Prefer `agent`; fall back to legacy `model` field."""
+    v = event.get("agent", event.get("model"))
+    return str(v) if v is not None and str(v) != "" else "unknown"
+
+
 def load_events(path: Path) -> pd.DataFrame:
     rows: list[dict] = []
     if not path.exists():
@@ -44,8 +50,7 @@ def load_events(path: Path) -> pd.DataFrame:
                 "timestamp": _parse_timestamp(str(event.get("timestamp", ""))),
                 "skill_name": str(event.get("skill_name", "unknown")),
                 "session_id": str(event.get("session_id", "unknown")),
-                "repo": str(event.get("repo", "unknown")),
-                "model": str(event.get("model", "unknown")),
+                "agent": _event_agent(event),
             }
         )
 
@@ -104,8 +109,8 @@ with st.sidebar:
 df = load_events_from_paths(all_paths)
 if df.empty:
     st.warning(
-        "No valid events found. Add JSONL records with keys like "
-        "`timestamp`, `skill_name`, `session_id`, `repo`, and `model`."
+        "No valid events found. Add JSONL lines with at least "
+        "`timestamp`, `skill_name`, `session_id`, and `agent` (legacy logs may use `model` instead of `agent`)."
     )
     st.stop()
 
@@ -115,8 +120,9 @@ max_ts = df["timestamp"].max().date()
 with st.sidebar:
     st.header("Filters")
     date_range = st.date_input("Date range", (min_ts, max_ts))
-    selected_repos = st.multiselect("Repo", sorted(df["repo"].unique()), default=sorted(df["repo"].unique()))
-    selected_models = st.multiselect("Model", sorted(df["model"].unique()), default=sorted(df["model"].unique()))
+    selected_agents = st.multiselect(
+        "Agent", sorted(df["agent"].unique()), default=sorted(df["agent"].unique())
+    )
 
 filtered = df.copy()
 if isinstance(date_range, tuple) and len(date_range) == 2:
@@ -125,10 +131,8 @@ if isinstance(date_range, tuple) and len(date_range) == 2:
         (filtered["timestamp"].dt.date >= start)
         & (filtered["timestamp"].dt.date <= end)
     ]
-if selected_repos:
-    filtered = filtered[filtered["repo"].isin(selected_repos)]
-if selected_models:
-    filtered = filtered[filtered["model"].isin(selected_models)]
+if selected_agents:
+    filtered = filtered[filtered["agent"].isin(selected_agents)]
 
 if filtered.empty:
     st.info("No events match current filters.")
@@ -138,7 +142,7 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total invocations", f"{len(filtered):,}")
 col2.metric("Unique skills", f"{filtered['skill_name'].nunique():,}")
 col3.metric("Unique sessions", f"{filtered['session_id'].nunique():,}")
-col4.metric("Unique repos", f"{filtered['repo'].nunique():,}")
+col4.metric("Unique agents", f"{filtered['agent'].nunique():,}")
 
 st.subheader("Today")
 today = filtered["timestamp"].max().date()
