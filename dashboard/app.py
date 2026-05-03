@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 
 
-DEFAULT_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage.jsonl"
+DEFAULT_CURSOR_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage.jsonl"
 
 
 def default_claude_skill_usage_log_path() -> Path:
@@ -17,6 +17,9 @@ def default_claude_skill_usage_log_path() -> Path:
     override = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
     root = Path(override).expanduser() if override else Path.home() / ".claude"
     return root / "ai-tracking" / "skill-usage.jsonl"
+
+
+DEFAULT_PRIMARY_LOG_PATH = default_claude_skill_usage_log_path()
 
 
 def _parse_timestamp(value: str) -> datetime | None:
@@ -76,22 +79,22 @@ def _parse_extra_log_paths(raw: str) -> list[Path]:
 st.set_page_config(page_title="Panda Skills Analytics", layout="wide")
 st.title("Panda Skills Analytics")
 st.caption(
-    "Track skill invocation trends from JSONL logs (Cursor: ~/.cursor/ai-tracking/; "
-    "Claude Code: ~/.claude/ai-tracking/)."
+    "Primary log defaults to Claude Code (~/.claude/ai-tracking/). Add Cursor’s JSONL "
+    "below to merge both."
 )
 
 with st.sidebar:
     st.header("Data source")
-    path_input = st.text_input("Primary log file path", str(DEFAULT_LOG_PATH))
+    path_input = st.text_input("Primary log file path", str(DEFAULT_PRIMARY_LOG_PATH))
     log_path = Path(path_input).expanduser()
-    claude_default_log = default_claude_skill_usage_log_path()
+    cursor_default_log = DEFAULT_CURSOR_LOG_PATH
     merge_help = (
-        "Optional. Merge Claude Code (or other) JSONL with the primary log. "
-        f"Default Claude watcher output: `{claude_default_log}`."
+        "Optional. Merge Cursor (or other) JSONL with the primary Claude log. "
+        f"Typical Cursor path: `{cursor_default_log}`."
     )
     extra_raw = st.text_area(
         "Additional log paths (one per line)",
-        value=str(claude_default_log) if claude_default_log.exists() else "",
+        value=str(cursor_default_log) if cursor_default_log.exists() else "",
         height=100,
         help=merge_help,
     )

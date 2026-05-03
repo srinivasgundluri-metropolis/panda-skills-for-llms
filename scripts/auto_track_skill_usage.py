@@ -227,11 +227,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--layout",
         choices=(LAYOUT_CURSOR, LAYOUT_CLAUDE_CODE),
-        default=LAYOUT_CURSOR,
+        default=LAYOUT_CLAUDE_CODE,
         help=(
-            "Transcript layout: "
-            f"'{LAYOUT_CURSOR}' expects **/agent-transcripts/**/*.jsonl under --transcripts-root; "
-            f"'{LAYOUT_CLAUDE_CODE}' expects session *.jsonl under ~/.claude/projects (see docs)."
+            "Transcript layout (default: claude-code). "
+            f"'{LAYOUT_CLAUDE_CODE}' expects session *.jsonl under ~/.claude/projects (see docs). "
+            f"'{LAYOUT_CURSOR}' expects **/agent-transcripts/**/*.jsonl under --transcripts-root."
         ),
     )
     parser.add_argument(

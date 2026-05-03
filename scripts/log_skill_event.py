@@ -3,11 +3,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 
-DEFAULT_LOG_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-usage.jsonl"
+def default_skill_usage_log_path() -> Path:
+    """Same default log as auto_track_skill_usage.py when layout=claude-code."""
+    override = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
+    root = Path(override).expanduser() if override else Path.home() / ".claude"
+    return root / "ai-tracking" / "skill-usage.jsonl"
+
+
+DEFAULT_LOG_PATH = default_skill_usage_log_path()
 
 
 def utc_now_iso() -> str:
@@ -26,7 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--log-path",
         default=str(DEFAULT_LOG_PATH),
-        help="Path to JSONL file (default: ~/.cursor/ai-tracking/skill-usage.jsonl)",
+        help=(
+            "Path to JSONL file (default: ~/.claude/ai-tracking/skill-usage.jsonl; "
+            "honors CLAUDE_CONFIG_DIR)."
+        ),
     )
     return parser
 

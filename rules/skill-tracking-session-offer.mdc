@@ -9,8 +9,8 @@ When this is a **new agent chat** (first assistant turn after the user opens the
 
 1. **Ask once**: whether to start **Panda Skills** usage tracking (`auto_track_skill_usage.py`) for **this** environment.
 2. **Context**
-   - **Cursor**: default layout writes to `~/.cursor/ai-tracking/`; user may already use LaunchAgent `com.panda.skills.tracker` — if so, prefer `launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.panda.skills.tracker.plist"` when they want tracking, or confirm it is loaded. Avoid a **second** duplicate Cursor watcher unless they intentionally run both.
-   - **Claude Code**: use `--layout claude-code` (defaults to `~/.claude/ai-tracking/` and transcripts under `~/.claude/projects`).
+   - **Claude Code**: watcher **defaults** to Claude (`~/.claude/ai-tracking/`, transcripts under `~/.claude/projects`); no `--layout` flag needed.
+   - **Cursor**: run with **`--layout cursor`** (writes to `~/.cursor/ai-tracking/`). User may already use LaunchAgent `com.panda.skills.tracker` — if so, prefer `launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.panda.skills.tracker.plist"` when they want tracking, or confirm it is loaded. Avoid a **second** duplicate Cursor watcher unless they intentionally run both.
 3. **If they say yes**, run the watcher **in the background** (or restore LaunchAgent as above). Resolve `--repo` from `git remote get-url origin` basename or the workspace folder name.
 4. **Script path**: use `$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py` when `PANDA_SKILLS_ROOT` is set to their clone of this repo; otherwise locate `scripts/auto_track_skill_usage.py` under their Panda Skills checkout (ask once if unclear).
 5. If they decline or tracking is already running, **do not** ask again in the same thread unless they ask.

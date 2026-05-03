@@ -31,6 +31,8 @@ def plist_content(
   <array>
     <string>{python_bin}</string>
     <string>{tracker_script}</string>
+    <string>--layout</string>
+    <string>cursor</string>
     <string>--repo</string>
     <string>{repo}</string>
     <string>--model</string>

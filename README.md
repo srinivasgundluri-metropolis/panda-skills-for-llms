@@ -49,12 +49,14 @@ export PANDA_SKILLS_ROOT="/absolute/path/to/this/repo"   # optional but handy
 export REPO_LABEL="YOUR_REPO"   # used as --repo in examples below; e.g. my-app
 ```
 
-### Where files go (Cursor vs Claude Code)
+### Where files go (Claude Code vs Cursor)
+
+The watcher defaults to **Claude Code**. Use **`--layout cursor`** for Cursor.
 
 | Runtime | Watcher flag | Transcripts (default) | Events JSONL | Offset state (no double-count) |
 | --- | --- | --- | --- | --- |
-| **Cursor** | `--layout cursor` (default) | `~/.cursor/projects/**/agent-transcripts/**/*.jsonl` | `~/.cursor/ai-tracking/skill-usage.jsonl` | `~/.cursor/ai-tracking/skill-tracker-state.json` |
-| **Claude Code** | `--layout claude-code` | `~/.claude/projects/**/*.jsonl` (excludes `memory/`, `tool-results/`) | `~/.claude/ai-tracking/skill-usage.jsonl` | `~/.claude/ai-tracking/skill-tracker-state.json` |
+| **Claude Code** | *(default — omit flag or `--layout claude-code`)* | `~/.claude/projects/**/*.jsonl` (excludes `memory/`, `tool-results/`) | `~/.claude/ai-tracking/skill-usage.jsonl` | `~/.claude/ai-tracking/skill-tracker-state.json` |
+| **Cursor** | **`--layout cursor`** | `~/.cursor/projects/**/agent-transcripts/**/*.jsonl` | `~/.cursor/ai-tracking/skill-usage.jsonl` | `~/.cursor/ai-tracking/skill-tracker-state.json` |
 
 If you set **`CLAUDE_CONFIG_DIR`**, Claude’s paths are under that directory instead of `~/.claude`. Cursor and Claude use **separate** logs so you can run two watchers at once.
 
@@ -72,13 +74,13 @@ If you set **`CLAUDE_CONFIG_DIR`**, Claude’s paths are under that directory in
    pip install -r dashboard/requirements.txt
    ```
 
-2. **Ingest history once, then keep watching (Cursor example)**
+2. **Ingest history once, then keep watching (Claude Code — default layout)**
 
    From the repo root (or use `$PANDA_SKILLS_ROOT`):
 
    ```bash
-   python scripts/auto_track_skill_usage.py --once --repo "$REPO_LABEL" --model cursor
-   python scripts/auto_track_skill_usage.py --repo "$REPO_LABEL" --model cursor --interval-seconds 5
+   python scripts/auto_track_skill_usage.py --once --repo "$REPO_LABEL" --model claude-code
+   python scripts/auto_track_skill_usage.py --repo "$REPO_LABEL" --model claude-code --interval-seconds 5
    ```
 
 3. **Open the dashboard**
@@ -87,23 +89,23 @@ If you set **`CLAUDE_CONFIG_DIR`**, Claude’s paths are under that directory in
    streamlit run dashboard/app.py
    ```
 
-   By default the primary file is `~/.cursor/ai-tracking/skill-usage.jsonl`.
+   By default the **primary** file is `~/.claude/ai-tracking/skill-usage.jsonl`.
 
-4. **Claude Code (second process, does not touch Cursor files)**
+4. **Cursor (second process — does not touch Claude files)**
 
    ```bash
    python scripts/auto_track_skill_usage.py \
-     --layout claude-code \
+     --layout cursor \
      --repo "$REPO_LABEL" \
-     --model claude-code \
+     --model cursor \
      --interval-seconds 5
    ```
 
-   Omit `--log-path` / `--state-path` to keep defaults under `~/.claude/ai-tracking/`.
+   Omit `--log-path` / `--state-path` to keep defaults under `~/.cursor/ai-tracking/`.
 
 5. **See both tools in one dashboard**
 
-   Sidebar: primary = Cursor JSONL, **Additional log paths** = `~/.claude/ai-tracking/skill-usage.jsonl`.
+   Sidebar: **primary** = `~/.claude/ai-tracking/skill-usage.jsonl`, **Additional log paths** = `~/.cursor/ai-tracking/skill-usage.jsonl` (the UI prefills Cursor’s path when that file exists).
 
 Transcript layout reference: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 
@@ -139,6 +141,8 @@ Copy the versioned templates from this repo into your **global** config (not per
 Set `PANDA_SKILLS_ROOT` in your shell profile so the agent can run `"$PANDA_SKILLS_ROOT/scripts/auto_track_skill_usage.py"` without guessing. The rules only **prompt** the assistant; they do not start processes by themselves.
 
 ### Auto-start on macOS (Cursor watcher only)
+
+`install_launch_agent.py` installs a launchd job that runs the watcher with **`--layout cursor`** (Cursor transcripts and `~/.cursor/ai-tracking/` logs).
 
 ```bash
 python scripts/install_launch_agent.py --repo "$REPO_LABEL" --model cursor
