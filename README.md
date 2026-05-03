@@ -45,6 +45,20 @@ streamlit run dashboard/app.py
 
 The app expects the log at **`~/.claude/ai-tracking/skill-usage.jsonl`** unless you change the path in the sidebar.
 
+### Tracking Cursor (optional)
+
+The default watcher is for **Claude Code**. For **Cursor**, run a **second** process with **`--layout cursor`** (separate log under `~/.cursor/ai-tracking/`). Use **`--agent cursor`** (or any label) so the dashboard can tell the two streams apart:
+
+```bash
+python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --interval-seconds 5
+```
+
+One-off ingest: add **`--once`**. Do **not** run two processes that write the **same** JSONL.
+
+In the **dashboard**, point the primary path or **Additional log paths** at **`~/.cursor/ai-tracking/skill-usage.jsonl`** when you want to see Cursor events (alone or next to the Claude file).
+
+Manual test line for the Cursor log: add **`--log-path ~/.cursor/ai-tracking/skill-usage.jsonl --agent cursor`** to `log_skill_event.py`.
+
 ### Optional extras
 
 - **Test one event:**  
