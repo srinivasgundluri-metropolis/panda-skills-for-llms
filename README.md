@@ -65,10 +65,6 @@ When the filtered data contains **more than one** distinct `agent` value (for ex
 
 If you only have one agent label in the log, the chart is replaced by a short note explaining how to add a second label (another watcher, different `--agent`, or a merged JSONL).
 
-To preview the comparison UI **without using your own telemetry**, set **Primary log file path** in the sidebar to the bundled sample log:
-
-`assets/readme-dashboard-demo.jsonl` (synthetic `claude-code` vs `cursor` events in this repo).
-
 ### Letting macOS start the watchers for you
 
 If you would rather not think about terminals, you can register two small LaunchAgent jobs—one per layout:
@@ -125,7 +121,7 @@ Official note on where Claude Code stores data: [Claude Code application data](h
 
 ### Screenshot
 
-Full-page view of the dashboard (metrics, **Compare agents** table, grouped **invocations by agent** chart, and sections below). The capture below uses the sample log `assets/readme-dashboard-demo.jsonl` so the two-agent comparison is visible.
+Representative full-page view of the dashboard (metrics, filters, and the sections described above). The **Compare agents** table and grouped chart appear once your JSONL includes two or more distinct `agent` values under the current filters.
 
 ![Panda Skills Analytics](assets/skills-analytics-fullpage.png)
 
