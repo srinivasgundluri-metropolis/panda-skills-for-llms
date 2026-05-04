@@ -119,11 +119,21 @@ For the Cursor log specifically, add `--log-path` pointing at that layout’s JS
 
 Official note on where Claude Code stores data: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 
-### Screenshot
+### Screenshots
 
-Representative full-page view of the dashboard (metrics, filters, and the sections described above). The **Compare agents** table and grouped chart appear once your JSONL includes two or more distinct `agent` values under the current filters.
+With Claude and Cursor logs merged in the sidebar (**Primary** + **Additional log paths**) and both agents selected in **Filters**, the dashboard shows per-agent totals, skill-by-agent bars, then the usual “today” slice, top skills, tables, and recent rows.
 
-![Panda Skills Analytics](assets/skills-analytics-fullpage.png)
+**Metrics, Compare agents, and top skills by agent**
+
+![Panda Skills Analytics: summary metrics, Compare agents table, and grouped top-12 skills by agent](assets/skills-analytics-compare-agents.png)
+
+**Today’s mix and overall top skills**
+
+![Panda Skills Analytics: today donut and top skills bar chart](assets/skills-analytics-top-skills.png)
+
+**Skill usage table and recent events**
+
+![Panda Skills Analytics: skill usage table and recent events](assets/skills-analytics-tables-recent.png)
 
 ---
 
