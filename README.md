@@ -54,7 +54,20 @@ Do not run two processes that write the **same** JSONL file.
 streamlit run dashboard/app.py
 ```
 
-The sidebar defaults to the Claude log path. If you also track Cursor, paste the Cursor JSONL path into **Additional log paths** so both streams load together. When more than one `agent` label appears in your data, the **Compare agents** section gives you a side-by-side read: volume, how many different skills showed up, and a grouped chart for the busiest skills.
+The sidebar defaults to the Claude log path. If you also track Cursor, paste the Cursor JSONL path into **Additional log paths** so both streams load together.
+
+#### Compare agents (skill invocations)
+
+When the filtered data contains **more than one** distinct `agent` value (for example `claude-code` and `cursor` from two watchers, or two custom `--agent` labels), the dashboard shows:
+
+1. **Per-agent summary table** — total skill invocations, count of distinct skills, session count, invocations per session, and distinct skills per session.
+2. **Grouped bar chart** — for the **top 12 skills** by overall volume, horizontal bars compare **how many times each agent invoked each skill** under the current date and agent filters (Plotly legend = agent).
+
+If you only have one agent label in the log, the chart is replaced by a short note explaining how to add a second label (another watcher, different `--agent`, or a merged JSONL).
+
+To preview the comparison UI **without using your own telemetry**, set **Primary log file path** in the sidebar to the bundled sample log:
+
+`assets/readme-dashboard-demo.jsonl` (synthetic `claude-code` vs `cursor` events in this repo).
 
 ### Letting macOS start the watchers for you
 
@@ -111,6 +124,8 @@ For the Cursor log specifically, add `--log-path` pointing at that layout’s JS
 Official note on where Claude Code stores data: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 
 ### Screenshot
+
+Full-page view of the dashboard (metrics, **Compare agents** table, grouped **invocations by agent** chart, and sections below). The capture below uses the sample log `assets/readme-dashboard-demo.jsonl` so the two-agent comparison is visible.
 
 ![Panda Skills Analytics](assets/skills-analytics-fullpage.png)
 
