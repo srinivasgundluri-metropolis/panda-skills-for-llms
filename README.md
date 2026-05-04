@@ -54,7 +54,16 @@ Do not run two processes that write the **same** JSONL file.
 streamlit run dashboard/app.py
 ```
 
-The sidebar defaults to the Claude log path. If you also track Cursor, paste the Cursor JSONL path into **Additional log paths** so both streams load together. When more than one `agent` label appears in your data, the **Compare agents** section gives you a side-by-side read: volume, how many different skills showed up, and a grouped chart for the busiest skills.
+The sidebar defaults to the Claude log path. If you also track Cursor, paste the Cursor JSONL path into **Additional log paths** so both streams load together.
+
+#### Compare agents (skill invocations)
+
+When the filtered data contains **more than one** distinct `agent` value (for example `claude-code` and `cursor` from two watchers, or two custom `--agent` labels), the dashboard shows:
+
+1. **Per-agent summary table** — total skill invocations, count of distinct skills, session count, invocations per session, and distinct skills per session.
+2. **Grouped bar chart** — for the **top 12 skills** by overall volume, horizontal bars compare **how many times each agent invoked each skill** under the current date and agent filters (Plotly legend = agent).
+
+If you only have one agent label in the log, the chart is replaced by a short note explaining how to add a second label (another watcher, different `--agent`, or a merged JSONL).
 
 ### Letting macOS start the watchers for you
 
@@ -110,9 +119,21 @@ For the Cursor log specifically, add `--log-path` pointing at that layout’s JS
 
 Official note on where Claude Code stores data: [Claude Code application data](https://code.claude.com/docs/en/claude-directory.md#application-data).
 
-### Screenshot
+### Screenshots
 
-![Panda Skills Analytics](assets/skills-analytics-fullpage.png)
+With Claude and Cursor logs merged in the sidebar (**Primary** + **Additional log paths**) and both agents selected in **Filters**, the dashboard shows per-agent totals, skill-by-agent bars, then the usual “today” slice, top skills, tables, and recent rows.
+
+**Metrics, Compare agents, and top skills by agent**
+
+![Panda Skills Analytics: summary metrics, Compare agents table, and grouped top-12 skills by agent](assets/skills-analytics-compare-agents.png)
+
+**Today’s mix and overall top skills**
+
+![Panda Skills Analytics: today donut and top skills bar chart](assets/skills-analytics-top-skills.png)
+
+**Skill usage table and recent events**
+
+![Panda Skills Analytics: skill usage table and recent events](assets/skills-analytics-tables-recent.png)
 
 ---
 
