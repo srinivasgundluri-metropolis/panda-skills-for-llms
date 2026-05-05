@@ -22,8 +22,14 @@ LAYOUT_CLAUDE_CODE = "claude-code"
 
 SKILL_PATTERNS = [
     re.compile(r"/skills/([^/]+)/SKILL\.md"),
-    re.compile(r"\\.claude/skills/([^/]+)/SKILL\.md"),
+    re.compile(r"\.claude/skills/([^/]+)/SKILL\.md"),  # was r"\\.claude..." (bug: matched literal backslash)
+    re.compile(r"\.cursor/skills/([^/]+)/SKILL\.md"),
+    # Slash-command invocations record "Base directory for this skill: .../skills/<name>" without SKILL.md
+    re.compile(r"\.claude/skills/([^/\s\"'\\]+)"),
+    re.compile(r"\.cursor/skills/([^/\s\"'\\]+)"),
 ]
+
+SLASH_COMMAND_PATTERN = re.compile(r"<command-name>/([^</\n]+)</command-name>")
 
 EXCLUDE_SNIPPETS = [
     "/plugins/cache/",
@@ -146,6 +152,34 @@ def extract_tool_invocation_skills(raw_line: str) -> set[str]:
     return skills
 
 
+def extract_slash_command_skills(raw_line: str) -> set[str]:
+    """Extract skills from slash-command invocations (<command-name>/skill</command-name> tags)."""
+    skills: set[str] = set()
+    if "<command-name>" not in raw_line:
+        return skills
+    try:
+        entry = json.loads(raw_line)
+    except (json.JSONDecodeError, ValueError):
+        return skills
+
+    def _scan_text(text: str) -> None:
+        for match in SLASH_COMMAND_PATTERN.findall(text):
+            skill = match.strip()
+            if skill and is_valid_skill_name(skill):
+                skills.add(skill)
+
+    msg = entry.get("message") or {}
+    content = msg.get("content") or entry.get("content") or ""
+    if isinstance(content, str):
+        _scan_text(content)
+    elif isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                _scan_text(item.get("text", ""))
+
+    return skills
+
+
 def extract_named_skills(raw_line: str, known_skills: set[str]) -> set[str]:
     # Only attempt mention parsing when line likely discusses skills.
     lowered = raw_line.lower()
@@ -194,14 +228,23 @@ def process_new_lines(
 
     session_id = infer_session_id(transcript_file, layout)
     lines = new_data.splitlines()
+    # Track skills already emitted for this session batch to avoid double-counting.
+    # A slash_command line (user msg) and tool_use line (assistant msg) both fire
+    # for the same /skill invocation — deduplicate within this processing window.
+    emitted_skills: set[str] = set()
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as out:
         for line in lines:
             tool_skills = extract_tool_invocation_skills(line)
-            if tool_skills:
-                # Prefer structured tool invocations — accurate, no false positives
-                all_skills = sorted(tool_skills)
-                detection_map = {s: "tool_use" for s in tool_skills}
+            slash_skills = extract_slash_command_skills(line)
+            if tool_skills or slash_skills:
+                # Prefer structured detections — accurate, no false positives.
+                # tool_use wins over slash_command when both are present for a skill.
+                all_skills = sorted(tool_skills | slash_skills)
+                detection_map = {
+                    **{s: "slash_command" for s in slash_skills},
+                    **{s: "tool_use" for s in tool_skills},  # tool_use overwrites slash_command
+                }
             else:
                 path_skills = extract_path_skills(line)
                 # Skip mention-based detection entirely — the system reminder/context
@@ -213,6 +256,9 @@ def process_new_lines(
             if not all_skills:
                 continue
             for skill in all_skills:
+                if skill in emitted_skills:
+                    continue
+                emitted_skills.add(skill)
                 detection = detection_map[skill]
                 event = {
                     "timestamp": utc_now_iso(),
@@ -236,6 +282,9 @@ def run_once(
     agent_label: str,
     known_skills: set[str],
     layout: str,
+    *,
+    tail_new_files: bool,
+    backfill: bool,
 ) -> int:
     state = load_state(state_path)
     offsets: dict[str, int] = state.get("offsets", {})
@@ -243,7 +292,14 @@ def run_once(
 
     for transcript_file in discover_transcripts(transcripts_root, layout):
         key = str(transcript_file)
-        old_offset = int(offsets.get(key, 0))
+        if backfill:
+            old_offset = 0
+        elif tail_new_files and key not in offsets:
+            # Interval watcher: skip existing transcript bytes so we only log new work
+            # unless the user runs --once or --once --backfill.
+            old_offset = transcript_file.stat().st_size if transcript_file.is_file() else 0
+        else:
+            old_offset = int(offsets.get(key, 0))
         new_offset, events = process_new_lines(
             transcript_file=transcript_file,
             old_offset=old_offset,
@@ -322,12 +378,23 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Process currently available transcript updates once and exit.",
     )
+    parser.add_argument(
+        "--backfill",
+        action="store_true",
+        help=(
+            "Only with --once: re-read each transcript from byte 0 for this run, then save "
+            "offsets at EOF. Use to ingest older sessions after the interval watcher tailed new "
+            "files. Can duplicate JSONL rows if those lines were already logged."
+        ),
+    )
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    if args.backfill and not args.once:
+        parser.error("--backfill requires --once")
 
     layout: str = args.layout
     if args.transcripts_root:
@@ -361,6 +428,8 @@ def main() -> None:
             args.agent,
             known_skills,
             layout,
+            tail_new_files=False,
+            backfill=args.backfill,
         )
         print(f"Processed once. New events written: {events}")
         return
@@ -378,6 +447,8 @@ def main() -> None:
             args.agent,
             known_skills,
             layout,
+            tail_new_files=True,
+            backfill=False,
         )
         if events:
             print(f"[{utc_now_iso()}] wrote {events} new event(s)")

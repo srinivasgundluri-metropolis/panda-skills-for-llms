@@ -31,20 +31,20 @@ From a clone of this repo:
 ```bash
 pip install -r dashboard/requirements.txt
 
-python scripts/auto_track_skill_usage.py --once
 python scripts/auto_track_skill_usage.py --interval-seconds 5
 ```
 
-The first command catches up on history; the second keeps watching. Leave it running while you work, stop with Ctrl+C. You can pass **`--agent some-label`** on both if you want a custom tag; otherwise the default label is `claude-code`.
+The interval watcher **does not scan old transcript bytes** for files it has never seen: it starts at the **current end of each file** and only logs skill usage from new lines written while it runs. To ingest **existing** transcript history on purpose, run **`--once`** (reads from the beginning for transcripts that are not in the state file yet). If you already ran the interval watcher (so state points at EOF) and later want a full history pass, use **`--once --backfill`** (may append duplicate rows if those sessions were already logged). Leave the interval process running while you work; stop with Ctrl+C. You can pass **`--agent some-label`** if you want a custom tag; otherwise the default label is `claude-code`.
 
 ### Cursor
 
 Cursor needs a **second** watcher with **`--layout cursor`**. It reads transcript files under `~/.cursor/projects/…/agent-transcripts/` and writes its own JSONL under `~/.cursor/ai-tracking/` by default. Give it its own **`--agent`** (people often use `cursor`) so lines do not get mixed up with Claude Code in the dashboard.
 
 ```bash
-python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --once
 python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --interval-seconds 5
 ```
+
+Same **tail-by-default** behavior as above; add **`--once`** (and optionally **`--once --backfill`**) when you explicitly want older Cursor transcripts counted.
 
 Do not run two processes that write the **same** JSONL file.
 
@@ -107,7 +107,7 @@ For the Cursor log specifically, add `--log-path` pointing at that layout’s JS
 
 ## When something looks off
 
-**Nothing shows in the dashboard.** Run `--once`, confirm the JSONL path in the sidebar, and remember the watcher only sees lines that mention real skill names from this repo’s `skills/` folders.
+**Nothing shows in the dashboard.** Confirm the JSONL path in the sidebar, remember the watcher only sees lines that mention real skill names from this repo’s `skills/` folders, and remember the interval watcher ignores transcript history until you run **`--once`** (or **`--once --backfill`** if state already tails those files).
 
 **The file stops growing.** The interval process has to stay running, and new content has to land in the transcript paths the watcher is scanning (override with `--transcripts-root` only if you know you need it).
 
