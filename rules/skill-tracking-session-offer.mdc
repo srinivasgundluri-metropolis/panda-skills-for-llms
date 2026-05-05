@@ -32,7 +32,7 @@ CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 test -s "$CC_HOME/ai-tracking/skill-usage.jsonl" && echo has_events || echo empty_or_missing
 ```
 
-If **`empty_or_missing`**, ask in one go: start the **interval** watcher **and** whether to run **`--once`** backfill (recommended so past transcripts show in the dashboard). If the log **already has events**, only ask to start the watcher.
+If **`empty_or_missing`**, ask in one go: start the **interval** watcher **and** whether to run **`--once`** backfill. The interval watcher only tails **new** transcript bytes by default; **`--once`** is what ingests **existing** transcript files (only if they want that in the dashboard). If the log **already has events**, only ask to start the watcher.
 
 ## 3. If they say yes — run Bash and verify
 
