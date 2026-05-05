@@ -31,7 +31,7 @@ From a clone of this repo:
 ```bash
 pip install -r dashboard/requirements.txt
 
-python scripts/auto_track_skill_usage.py --interval-seconds 5
+python scripts/auto_track_skill_usage.py --layout claude-code --interval-seconds 5
 ```
 
 The interval watcher **does not scan old transcript bytes** for files it has never seen: it starts at the **current end of each file** and only logs skill usage from new lines written while it runs. To ingest **existing** transcript history on purpose, run **`--once`** (reads from the beginning for transcripts that are not in the state file yet). If you already ran the interval watcher (so state points at EOF) and later want a full history pass, use **`--once --backfill`** (may append duplicate rows if those sessions were already logged). Leave the interval process running while you work; stop with Ctrl+C. You can pass **`--agent some-label`** if you want a custom tag; otherwise the default label is `claude-code`.
@@ -89,7 +89,7 @@ One practical detail: the plist pins the **Python interpreter you used when you 
 
 Some people like the agent to **offer** to start the watcher at the beginning of a session. Copy `rules/claude-code/skill-tracking-session-offer.md` into `~/.claude/rules/`, and if you use Cursor’s agent with the same flow, copy `rules/skill-tracking-session-offer.mdc` into `~/.cursor/rules/`.
 
-The rules first check whether a watcher is already running (`pgrep` on the script name). If something is running, they stay quiet. If not, they can ask to start the long-running watcher. If your skill log file is **missing or empty**, they can also ask whether to run a one-time **`--once`** pass so older transcripts are not skipped.
+The rules check whether **that product’s** watcher is running (`pgrep` matches **`--layout cursor`** vs **`--layout claude-code`** in the process argv, not the script name alone). That way a Cursor session does not mistake a Claude-only watcher for “already covered,” and vice versa. If the matching watcher is running, they stay quiet. If not, they can ask to start it. If your skill log file is **missing or empty**, they can also ask whether to run a one-time **`--once`** pass so older transcripts are not skipped. Re-run **`install_launch_agent.py`** for each layout if an older plist omitted **`--layout claude-code`** on the Claude job—new plists always pass **`--layout`** explicitly.
 
 Set **`PANDA_SKILLS_ROOT`** to the absolute path of this repo when you want those instructions to find `scripts/` even if the shell is not sitting in the clone. If LaunchAgents are already keeping the watcher alive, you will rarely see the prompt—that is expected.
 

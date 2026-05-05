@@ -5,10 +5,10 @@ When this is a **new Claude Code session** (your first reply after the session b
 ## 1. Check if tracking is already running (do this first)
 
 ```bash
-pgrep -f auto_track_skill_usage.py
+pgrep -f 'auto_track_skill_usage\.py.*--layout claude-code'
 ```
 
-- **Any PIDs printed** → watcher is already running (terminal or Launch Agent **`com.panda.skills.claude-code`**). **Do not ask.** **Do not start another.** Continue with the user’s task.
+- **Any PIDs printed** → a **Claude Code** watcher is already running (terminal or Launch Agent **`com.panda.skills.claude-code`**). **Do not ask.** **Do not start another** for this layout. (Cursor uses a **separate** process with `--layout cursor`; match that layout only in Cursor rules—same script filename, different argv.)
 - **No output** → go to step 2.
 
 If `pgrep` does not exist, skip to step 2.
@@ -51,10 +51,10 @@ Do **not** only “plan” to start the watcher—**execute** a shell command, t
 ```bash
 CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 mkdir -p "$CC_HOME/ai-tracking"
-python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" --once
+python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" --layout claude-code --once
 ```
 
-(Add **`--agent <label>`** after the script path when needed. Append **`--backfill`** only when they need the forced full re-read described above.)
+(Add **`--agent <label>`** after **`--layout claude-code`** when needed. Append **`--backfill`** only when they need the forced full re-read described above.)
 
 **Start** the interval watcher (runs detached; logs stderr/stdout to **`watcher-nohup.log`** next to the JSONL):
 
@@ -62,13 +62,14 @@ python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" --once
 CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 mkdir -p "$CC_HOME/ai-tracking"
 nohup python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" \
+  --layout claude-code \
   --interval-seconds 5 \
   >> "$CC_HOME/ai-tracking/watcher-nohup.log" 2>&1 &
 sleep 1
-pgrep -f auto_track_skill_usage.py
+pgrep -f 'auto_track_skill_usage\.py.*--layout claude-code'
 ```
 
-(Add **`--agent <label>`** before `--interval-seconds` when the user asked for a specific agent label.) If they **declined** backfill, **omit** the **`--once`** block and only run the **nohup** lines.
+(Add **`--agent <label>`** after **`--layout claude-code`** when the user asked for a specific agent label.) If they **declined** backfill, **omit** the **`--once`** block and only run the **nohup** lines.
 
 - If `pgrep` now shows a PID, tell the user **success** (mention **`$CC_HOME/ai-tracking/watcher-nohup.log`** if something looks wrong later).
 - If **still no PID**, show **`tail -20 "$CC_HOME/ai-tracking/watcher-nohup.log"`** and say start failed.

@@ -10,10 +10,10 @@ When this is a **new agent chat** in Cursor (first assistant turn), **before** s
 ## 1. Check if tracking is already running
 
 ```bash
-pgrep -f auto_track_skill_usage.py
+pgrep -f 'auto_track_skill_usage\.py.*--layout cursor'
 ```
 
-- **Any PIDs** → do **not** ask, do **not** start another watcher.
+- **Any PIDs** → a **Cursor** watcher is already running (interval process or Launch Agent **`com.panda.skills.cursor`**). Do **not** ask, do **not** start another **Cursor** watcher. (Claude Code uses a **separate** process with `--layout claude-code` and its own `pgrep`; same script name, different argv.)
 - **No output** → go to step 2.
 
 If `pgrep` is missing, go to step 2.
@@ -59,7 +59,7 @@ mkdir -p "$HOME/.cursor/ai-tracking"
 nohup python3 "<SCRIPT>" --layout cursor --agent cursor --interval-seconds 5 \
   >> "$HOME/.cursor/ai-tracking/watcher-nohup.log" 2>&1 &
 sleep 1
-pgrep -f auto_track_skill_usage.py
+pgrep -f 'auto_track_skill_usage\.py.*--layout cursor'
 ```
 
 (Add **`--agent <their-label>`** after `<SCRIPT>` and before **`--layout`** when they asked for a custom label.)
