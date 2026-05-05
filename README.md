@@ -87,7 +87,7 @@ One practical detail: the plist pins the **Python interpreter you used when you 
 
 ### Optional rules: “Want me to start tracking?”
 
-Some people like the agent to **offer** to start the watcher at the beginning of a session. Copy `rules/claude-code/skill-tracking-session-offer.md` into `~/.claude/rules/`, and if you use Cursor’s agent with the same flow, copy `rules/skill-tracking-session-offer.mdc` into `~/.cursor/rules/`.
+Some people like the agent to **offer** to start the watcher at the beginning of a session. Copy `rules/claude-code/skill-tracking-session-offer.md` into `~/.claude/rules/`, and if you use Cursor’s agent with the same flow, copy `rules/skill-tracking-session-offer.mdc` into `~/.cursor/rules/`. To refresh both installs from a clone after `git pull`, run **`./scripts/sync_skill_tracking_session_rules.sh`** (same destinations, mode `0644`).
 
 The rules check whether **that product’s** watcher is running (`pgrep` matches **`--layout cursor`** vs **`--layout claude-code`** in the process argv, not the script name alone). That way a Cursor session does not mistake a Claude-only watcher for “already covered,” and vice versa. If the matching watcher is running, they stay quiet. If not, they can ask to start it. If your skill log file is **missing or empty**, they can also ask whether to run a one-time **`--once`** pass so older transcripts are not skipped. Re-run **`install_launch_agent.py`** for each layout if an older plist omitted **`--layout claude-code`** on the Claude job—new plists always pass **`--layout`** explicitly.
 
