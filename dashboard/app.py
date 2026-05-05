@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 
 def default_claude_skill_usage_log_path() -> Path:
@@ -53,6 +54,12 @@ def decode_path_list(raw: str | None) -> list[str]:
         return [str(x).strip() for x in data if str(x).strip()]
     except (json.JSONDecodeError, TypeError, ValueError):
         return []
+
+
+def _maybe_autorefresh() -> None:
+    """Rerun the app on an interval so JSONL updates show without manual refresh."""
+    if st.session_state.get("auto_refresh", True):
+        st_autorefresh(interval=5000, limit=None, key="skill_dashboard_autorefresh")
 
 
 def _query_param_scalar(key: str) -> str | None:
@@ -155,6 +162,9 @@ def _primary_paths_from_query() -> list[str]:
 
 
 # Session state is cleared on full browser refresh; URL query params persist selections.
+if "auto_refresh" not in st.session_state:
+    st.session_state.auto_refresh = True
+
 if "primary_logs_ms" not in st.session_state:
     st.session_state.primary_logs_ms = _primary_paths_from_query()
 
@@ -169,6 +179,11 @@ if "extra_paths_ta" not in st.session_state:
         st.session_state.extra_paths_ta = ""
 
 with st.sidebar:
+    st.checkbox(
+        "Auto-refresh every 5 seconds",
+        help="Reload log files and charts on a timer (uses a lightweight page rerun).",
+        key="auto_refresh",
+    )
     st.header("Data source")
     merge_help = (
         "Optional. One path per line to merge into the same charts (e.g. a second machine’s export)."
@@ -212,6 +227,7 @@ if df.empty:
         "No valid events found. Add JSONL lines with at least "
         "`timestamp`, `skill_name`, `session_id`, and `agent` (legacy logs may use `model` instead of `agent`)."
     )
+    _maybe_autorefresh()
     st.stop()
 
 min_ts = df["timestamp"].min().date()
@@ -236,6 +252,7 @@ if selected_agents:
 
 if filtered.empty:
     st.info("No events match current filters.")
+    _maybe_autorefresh()
     st.stop()
 
 col1, col2, col3, col4 = st.columns(4)
@@ -382,3 +399,5 @@ st.dataframe(
     filtered.sort_values("timestamp", ascending=False).head(100),
     use_container_width=True,
 )
+
+_maybe_autorefresh()
