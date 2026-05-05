@@ -30,7 +30,7 @@ test -s "$CC_HOME/ai-tracking/skill-usage.jsonl" && echo has_events || echo empt
 If the result is **`empty_or_missing`**, include in the same ask (or a clear follow-up before starting):
 
 - Whether to start the **interval** watcher, and
-- Whether to **backfill** existing transcripts once with **`--once`** (recommended when the log is empty so past sessions appear in the dashboard).
+- Whether to **backfill** existing transcripts once with **`--once`**. The interval watcher **tails new bytes only** by default (it does not scan transcript history for files it has never seen). **`--once`** is what ingests **existing** transcript files—only ask this if they want past sessions in the dashboard.
 
 If the log **already has content**, only ask whether to start the watcher (no need to push backfill unless they ask).
 
@@ -46,7 +46,7 @@ Do **not** only “plan” to start the watcher—**execute** a shell command, t
 
 **Optional `--agent`:** if the user names a label (e.g. `plan`, `opus-session`), pass **`--agent <label>`**; otherwise omit it (watcher default is **`claude-code`**).
 
-**Backfill (only if they agreed to it in step 2):** run **`--once`** in the foreground first, same resolved script path and optional **`--agent`**:
+**Backfill (only if they agreed to it in step 2):** run **`--once`** in the foreground first, same resolved script path and optional **`--agent`**. If they already ran the interval watcher and state points at EOF but they still want a full history pass for one run, use **`--once --backfill`** instead (can duplicate JSONL rows if those lines were already logged).
 
 ```bash
 CC_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
@@ -54,7 +54,7 @@ mkdir -p "$CC_HOME/ai-tracking"
 python3 "<ABSOLUTE_PATH_TO>/scripts/auto_track_skill_usage.py" --once
 ```
 
-(Add **`--agent <label>`** after the script path when needed.)
+(Add **`--agent <label>`** after the script path when needed. Append **`--backfill`** only when they need the forced full re-read described above.)
 
 **Start** the interval watcher (runs detached; logs stderr/stdout to **`watcher-nohup.log`** next to the JSONL):
 
