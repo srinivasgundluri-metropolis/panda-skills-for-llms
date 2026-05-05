@@ -130,12 +130,26 @@ def _parse_extra_log_paths(raw: str) -> list[Path]:
     return out
 
 
-st.set_page_config(page_title="Panda Skills Analytics", layout="wide")
-st.title("Panda Skills Analytics")
-st.caption(
-    "Skill usage from JSONL logs (defaults: Claude Code + Cursor under this user’s home). "
-    "Selections persist in the page URL so refresh keeps them. Add more paths below if needed."
-)
+_DASHBOARD_DIR = Path(__file__).resolve().parent
+_PULSE_SVG = _DASHBOARD_DIR / "pulse.svg"
+
+st.set_page_config(page_title="skillPulse", layout="wide")
+if _PULSE_SVG.is_file():
+    _svg_uri = "data:image/svg+xml;charset=utf-8," + urllib.parse.quote(
+        _PULSE_SVG.read_text(encoding="utf-8")
+    )
+    st.markdown(
+        f"""
+<div style="display:flex;align-items:center;gap:14px;margin:0 0 6px 0;">
+  <img src="{_svg_uri}" width="48" height="48" alt="" role="presentation" style="flex-shrink:0"/>
+  <h1 style="margin:0;padding:0;border:none;line-height:1.1;">skillPulse</h1>
+</div>
+""".strip(),
+        unsafe_allow_html=True,
+    )
+else:
+    st.title("skillPulse")
+st.markdown("""Analytics for skill usage by LLMs""")
 
 PRESET_PATHS = default_primary_log_paths()
 
