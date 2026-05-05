@@ -54,7 +54,7 @@ Do not run two processes that write the **same** JSONL file.
 streamlit run dashboard/app.py
 ```
 
-The sidebar defaults to the Claude log path. If you also track Cursor, paste the Cursor JSONL path into **Additional log paths** so both streams load together.
+The sidebar **Primary log files** multiselect defaults to **both** the Claude Code and Cursor JSONL paths under your home directory; uncheck either stream if you want only one. **Additional log paths** still accepts extra files (one per line). Your choices are stored in the **page URL** (`logs` and `extra` query parameters) so a normal browser refresh keeps the same paths.
 
 #### Compare agents (skill invocations)
 
