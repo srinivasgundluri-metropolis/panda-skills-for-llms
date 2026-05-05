@@ -112,6 +112,40 @@ def extract_path_skills(raw_line: str) -> set[str]:
     return skills
 
 
+def extract_tool_invocation_skills(raw_line: str) -> set[str]:
+    """Extract skills from actual Skill tool invocations in the transcript JSONL."""
+    skills: set[str] = set()
+    try:
+        entry = json.loads(raw_line)
+    except (json.JSONDecodeError, ValueError):
+        return skills
+
+    def _scan_content(content_list: list) -> None:
+        for content in content_list:
+            if not isinstance(content, dict):
+                continue
+            if content.get("type") == "tool_use" and content.get("name") == "Skill":
+                skill = (content.get("input") or {}).get("skill", "")
+                if skill and is_valid_skill_name(skill):
+                    skills.add(skill)
+
+    # Top-level tool_use
+    if entry.get("type") == "tool_use" and entry.get("name") == "Skill":
+        skill = (entry.get("input") or {}).get("skill", "")
+        if skill and is_valid_skill_name(skill):
+            skills.add(skill)
+        return skills
+
+    # Claude Code: {"message": {"content": [...]}}
+    msg = entry.get("message") or {}
+    _scan_content(msg.get("content") or [])
+
+    # Direct content array
+    _scan_content(entry.get("content") or [])
+
+    return skills
+
+
 def extract_named_skills(raw_line: str, known_skills: set[str]) -> set[str]:
     # Only attempt mention parsing when line likely discusses skills.
     lowered = raw_line.lower()
@@ -163,13 +197,23 @@ def process_new_lines(
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as out:
         for line in lines:
-            path_skills = extract_path_skills(line)
-            named_skills = extract_named_skills(line, known_skills)
-            all_skills = sorted(path_skills | named_skills)
+            tool_skills = extract_tool_invocation_skills(line)
+            if tool_skills:
+                # Prefer structured tool invocations — accurate, no false positives
+                all_skills = sorted(tool_skills)
+                detection_map = {s: "tool_use" for s in tool_skills}
+            else:
+                path_skills = extract_path_skills(line)
+                # Skip mention-based detection entirely — the system reminder/context
+                # lists all skill names and causes bulk false-positive floods in both
+                # claude-code and cursor layouts.
+                named_skills: set[str] = set()
+                all_skills = sorted(path_skills | named_skills)
+                detection_map = {s: ("path" if s in path_skills else "mention") for s in all_skills}
             if not all_skills:
                 continue
             for skill in all_skills:
-                detection = "path" if skill in path_skills else "mention"
+                detection = detection_map[skill]
                 event = {
                     "timestamp": utc_now_iso(),
                     "skill_name": skill,
