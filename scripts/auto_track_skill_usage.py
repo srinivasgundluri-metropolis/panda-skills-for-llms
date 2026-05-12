@@ -20,6 +20,14 @@ DEFAULT_SKILLS_DIR = (Path(__file__).resolve().parent.parent / "skills")
 LAYOUT_CURSOR = "cursor"
 LAYOUT_CLAUDE_CODE = "claude-code"
 
+# When the interval watcher sees a transcript path for the first time, we used to
+# jump straight to EOF so a fresh install would not ingest the entire history. That
+# also skipped the opening user line in brand-new sessions (skills often appear there).
+# We now scan from byte 0 on first sight when the file is at most this many bytes;
+# larger unseen files are still assumed historical and start at EOF.
+DEFAULT_FIRST_SIGHT_FULL_SCAN_MAX_BYTES = 2 * 1024 * 1024
+ENV_FIRST_SIGHT_FULL_SCAN_MAX_BYTES = "PANDA_SKILL_TRACKER_FIRST_SCAN_MAX_BYTES"
+
 SKILL_PATTERNS = [
     re.compile(r"/skills/([^/]+)/SKILL\.md"),
     re.compile(r"\.claude/skills/([^/]+)/SKILL\.md"),  # was r"\\.claude..." (bug: matched literal backslash)
@@ -74,6 +82,34 @@ def load_state(path: Path) -> dict[str, dict[str, int]]:
 def save_state(path: Path, state: dict[str, dict[str, int]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2))
+
+
+def first_sight_byte_offset(transcript_file: Path) -> int:
+    """Byte offset when tail mode sees a transcript file that is not yet in state.
+
+    Small files get a full one-time scan so the first user turn (attached skills,
+    slash commands) is not missed. Large unseen files are treated as old history
+    and are skipped to EOF to avoid flooding the JSONL log on first install.
+
+    Override the size cap with PANDA_SKILL_TRACKER_FIRST_SCAN_MAX_BYTES (integer bytes).
+    Non-positive or invalid values fall back to the default cap.
+    """
+    try:
+        size = transcript_file.stat().st_size
+    except OSError:
+        return 0
+    raw = os.environ.get(ENV_FIRST_SIGHT_FULL_SCAN_MAX_BYTES, "").strip()
+    cap = DEFAULT_FIRST_SIGHT_FULL_SCAN_MAX_BYTES
+    if raw:
+        try:
+            parsed = int(raw)
+            if parsed > 0:
+                cap = parsed
+        except ValueError:
+            pass
+    if size <= cap:
+        return 0
+    return size
 
 
 def _path_contains_excluded_dir(path: Path, excluded: frozenset[str]) -> bool:
@@ -295,9 +331,9 @@ def run_once(
         if backfill:
             old_offset = 0
         elif tail_new_files and key not in offsets:
-            # Interval watcher: skip existing transcript bytes so we only log new work
-            # unless the user runs --once or --once --backfill.
-            old_offset = transcript_file.stat().st_size if transcript_file.is_file() else 0
+            # Interval watcher: unseen files — scan small files from 0 once (see
+            # first_sight_byte_offset); skip huge unseen files to EOF like before.
+            old_offset = first_sight_byte_offset(transcript_file) if transcript_file.is_file() else 0
         else:
             old_offset = int(offsets.get(key, 0))
         new_offset, events = process_new_lines(
