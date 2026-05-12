@@ -83,6 +83,14 @@ python scripts/uninstall_launch_agent.py --label com.panda.skills.cursor
 
 An older plist may still exist as `com.panda.skills.tracker`; the uninstall script can remove it if you pass that label.
 
+To **start the Streamlit dashboard at login** and open `http://localhost:8501` once the server is listening:
+
+```bash
+python scripts/install_dashboard_launch_agent.py
+```
+
+It installs `com.panda.skills.dashboard` (same `RunAtLoad` + `KeepAlive` pattern). Streamlit logs to `~/.cursor/ai-tracking/streamlit-dashboard-launchd.log`. Remove with `python scripts/uninstall_launch_agent.py --label com.panda.skills.dashboard`. Use a different port with `python scripts/install_dashboard_launch_agent.py --port 8502` if something else already uses 8501.
+
 One practical detail: the plist pins the **Python interpreter you used when you ran the installer**. If that ends up being the wrong one long-term, rerun the installer with the Python you actually want.
 
 ### Optional rules: “Want me to start tracking?”
