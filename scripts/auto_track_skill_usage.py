@@ -33,8 +33,9 @@ SKILL_PATTERNS = [
     re.compile(r"\.claude/skills/([^/]+)/SKILL\.md"),  # was r"\\.claude..." (bug: matched literal backslash)
     re.compile(r"\.cursor/skills/([^/]+)/SKILL\.md"),
     # Slash-command invocations record "Base directory for this skill: .../skills/<name>" without SKILL.md
-    re.compile(r"\.claude/skills/([^/\s\"'\\]+)"),
-    re.compile(r"\.cursor/skills/([^/\s\"'\\]+)"),
+    # Anchored to that prefix so bash output containing skill directory paths is not matched.
+    re.compile(r"Base directory for this skill:.*?\.claude/skills/([^/\s\"'\\]+)"),
+    re.compile(r"Base directory for this skill:.*?\.cursor/skills/([^/\s\"'\\]+)"),
 ]
 
 SLASH_COMMAND_PATTERN = re.compile(r"<command-name>/([^</\n]+)</command-name>")
