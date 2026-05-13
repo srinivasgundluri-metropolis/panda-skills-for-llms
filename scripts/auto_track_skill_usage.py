@@ -15,16 +15,9 @@ DEFAULT_STATE_PATH = Path.home() / ".cursor" / "ai-tracking" / "skill-tracker-st
 DEFAULT_TRANSCRIPTS_GLOB_CURSOR = "**/agent-transcripts/**/*.jsonl"
 # Paths under ~/.claude/projects/ to ignore when layout=claude-code (not session transcripts).
 CLAUDE_TRANSCRIPT_EXCLUDE_DIR_NAMES = frozenset({"memory", "tool-results"})
-DEFAULT_SKILLS_DIR = (Path(__file__).resolve().parent.parent / "skills")
 
 LAYOUT_CURSOR = "cursor"
 LAYOUT_CLAUDE_CODE = "claude-code"
-
-# Skill detection: "structured" = Skill tool + slash-command only (no path spam).
-# "both" = also log path matches to .../skills/<name>/SKILL.md (legacy behavior).
-DETECTION_STRUCTURED = "structured"
-DETECTION_BOTH = "both"
-ENV_DETECTION_MODE = "PANDA_SKILL_TRACK_DETECTION"
 
 # When the interval watcher sees a transcript path for the first time, we used to
 # jump straight to EOF so a fresh install would not ingest the entire history. That
@@ -34,23 +27,7 @@ ENV_DETECTION_MODE = "PANDA_SKILL_TRACK_DETECTION"
 DEFAULT_FIRST_SIGHT_FULL_SCAN_MAX_BYTES = 2 * 1024 * 1024
 ENV_FIRST_SIGHT_FULL_SCAN_MAX_BYTES = "PANDA_SKILL_TRACKER_FIRST_SCAN_MAX_BYTES"
 
-SKILL_PATTERNS = [
-    re.compile(r"/skills/([^/]+)/SKILL\.md"),
-    re.compile(r"\.claude/skills/([^/]+)/SKILL\.md"),  # was r"\\.claude..." (bug: matched literal backslash)
-    re.compile(r"\.cursor/skills/([^/]+)/SKILL\.md"),
-    # Slash-command invocations record "Base directory for this skill: .../skills/<name>" without SKILL.md
-    # Anchored to that prefix so bash output containing skill directory paths is not matched.
-    re.compile(r"Base directory for this skill:.*?\.claude/skills/([^/\s\"'\\]+)"),
-    re.compile(r"Base directory for this skill:.*?\.cursor/skills/([^/\s\"'\\]+)"),
-]
-
 SLASH_COMMAND_PATTERN = re.compile(r"<command-name>/([^</\n]+)</command-name>")
-
-EXCLUDE_SNIPPETS = [
-    "/plugins/cache/",
-    "/.cursor/plugins/cache/",
-    "/.claude/plugins/cache/",
-]
 
 
 def utc_now_iso() -> str:
@@ -136,29 +113,12 @@ def discover_transcripts(root: Path, layout: str) -> list[Path]:
     return sorted(root.glob(DEFAULT_TRANSCRIPTS_GLOB_CURSOR))
 
 
-def load_known_skills(skills_dir: Path) -> set[str]:
-    if not skills_dir.exists():
-        return set()
-    return {p.name for p in skills_dir.iterdir() if p.is_dir()}
-
-
 def is_valid_skill_name(skill: str) -> bool:
     if not skill:
         return False
     if "<" in skill or ">" in skill:
         return False
     return bool(re.fullmatch(r"[a-zA-Z0-9._-]+", skill))
-
-
-def extract_path_skills(raw_line: str) -> set[str]:
-    skills: set[str] = set()
-    if any(x in raw_line for x in EXCLUDE_SNIPPETS):
-        return skills
-    for pattern in SKILL_PATTERNS:
-        for match in pattern.findall(raw_line):
-            if match and is_valid_skill_name(match):
-                skills.add(match)
-    return skills
 
 
 def extract_tool_invocation_skills(raw_line: str) -> set[str]:
@@ -223,22 +183,6 @@ def extract_slash_command_skills(raw_line: str) -> set[str]:
     return skills
 
 
-def extract_named_skills(raw_line: str, known_skills: set[str]) -> set[str]:
-    # Only attempt mention parsing when line likely discusses skills.
-    lowered = raw_line.lower()
-    if "skill" not in lowered and "invoke" not in lowered and "use " not in lowered:
-        return set()
-
-    found: set[str] = set()
-    for skill in known_skills:
-        if not is_valid_skill_name(skill):
-            continue
-        pattern = re.compile(rf"(?<![A-Za-z0-9._-]){re.escape(skill)}(?![A-Za-z0-9._-])")
-        if pattern.search(raw_line):
-            found.add(skill)
-    return found
-
-
 def infer_session_id(file_path: Path, layout: str) -> str:
     if layout == LAYOUT_CLAUDE_CODE:
         # Session transcript files are named <session-id>.jsonl under each project folder.
@@ -254,10 +198,7 @@ def process_new_lines(
     old_offset: int,
     log_path: Path,
     agent_label: str,
-    known_skills: set[str],
     layout: str,
-    *,
-    detection_mode: str,
 ) -> tuple[int, int]:
     file_size = transcript_file.stat().st_size
     offset = min(old_offset, file_size)
@@ -282,27 +223,14 @@ def process_new_lines(
         for line in lines:
             tool_skills = extract_tool_invocation_skills(line)
             slash_skills = extract_slash_command_skills(line)
-            if tool_skills or slash_skills:
-                # Prefer structured detections — accurate, no false positives.
-                # tool_use wins over slash_command when both are present for a skill.
-                all_skills = sorted(tool_skills | slash_skills)
-                detection_map = {
-                    **{s: "slash_command" for s in slash_skills},
-                    **{s: "tool_use" for s in tool_skills},  # tool_use overwrites slash_command
-                }
-            else:
-                if detection_mode != DETECTION_BOTH:
-                    # structured (default): do not log path-only mentions (repeated every turn).
-                    continue
-                path_skills = extract_path_skills(line)
-                # Skip mention-based detection entirely — the system reminder/context
-                # lists all skill names and causes bulk false-positive floods in both
-                # claude-code and cursor layouts.
-                named_skills: set[str] = set()
-                all_skills = sorted(path_skills | named_skills)
-                detection_map = {s: ("path" if s in path_skills else "mention") for s in all_skills}
-            if not all_skills:
+            if not tool_skills and not slash_skills:
                 continue
+            # tool_use wins over slash_command when both are present for a skill.
+            all_skills = sorted(tool_skills | slash_skills)
+            detection_map = {
+                **{s: "slash_command" for s in slash_skills},
+                **{s: "tool_use" for s in tool_skills},
+            }
             for skill in all_skills:
                 if skill in emitted_skills:
                     continue
@@ -328,12 +256,10 @@ def run_once(
     log_path: Path,
     state_path: Path,
     agent_label: str,
-    known_skills: set[str],
     layout: str,
     *,
     tail_new_files: bool,
     backfill: bool,
-    detection_mode: str,
 ) -> int:
     state = load_state(state_path)
     offsets: dict[str, int] = state.get("offsets", {})
@@ -354,9 +280,7 @@ def run_once(
             old_offset=old_offset,
             log_path=log_path,
             agent_label=agent_label,
-            known_skills=known_skills,
             layout=layout,
-            detection_mode=detection_mode,
         )
         offsets[key] = new_offset
         total_events += events
@@ -364,13 +288,6 @@ def run_once(
     state["offsets"] = offsets
     save_state(state_path, state)
     return total_events
-
-
-def default_detection_mode() -> str:
-    raw = os.environ.get(ENV_DETECTION_MODE, DETECTION_STRUCTURED).strip().lower()
-    if raw == DETECTION_BOTH:
-        return DETECTION_BOTH
-    return DETECTION_STRUCTURED
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -420,22 +337,6 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--skills-dir",
-        default=str(DEFAULT_SKILLS_DIR),
-        help="Skills directory (folder names under skills/ used for validation only; path detection matches paths in transcripts).",
-    )
-    parser.add_argument(
-        "--detection-mode",
-        choices=(DETECTION_STRUCTURED, DETECTION_BOTH),
-        default=default_detection_mode(),
-        help=(
-            f"How to detect skill usage. '{DETECTION_STRUCTURED}' (default): only Skill tool invocations "
-            f"and slash-commands — avoids duplicate rows from repeated paths in context. "
-            f"'{DETECTION_BOTH}': also log path matches to .../skills/<name>/SKILL.md (legacy). "
-            f"Override default with env {ENV_DETECTION_MODE}={DETECTION_STRUCTURED}|{DETECTION_BOTH}."
-        ),
-    )
-    parser.add_argument(
         "--interval-seconds",
         type=int,
         default=5,
@@ -465,7 +366,6 @@ def main() -> None:
         parser.error("--backfill requires --once")
 
     layout: str = args.layout
-    detection_mode: str = args.detection_mode
 
     if args.transcripts_root:
         transcripts_root = Path(args.transcripts_root).expanduser()
@@ -487,28 +387,21 @@ def main() -> None:
         _, state_path = default_claude_skill_log_and_state()
     else:
         state_path = DEFAULT_STATE_PATH
-    skills_dir = Path(args.skills_dir).expanduser()
-    known_skills = load_known_skills(skills_dir)
-
     if args.once:
         events = run_once(
             transcripts_root,
             log_path,
             state_path,
             args.agent,
-            known_skills,
             layout,
             tail_new_files=False,
             backfill=args.backfill,
-            detection_mode=detection_mode,
         )
         print(f"Processed once. New events written: {events}")
         return
 
     print(f"Layout: {layout}")
-    print(f"Detection mode: {detection_mode}")
     print(f"Watching transcripts under: {transcripts_root}")
-    print(f"Using skills directory: {skills_dir}")
     print(f"Writing events to: {log_path}")
     print(f"State file: {state_path}")
     while True:
@@ -517,11 +410,9 @@ def main() -> None:
             log_path,
             state_path,
             args.agent,
-            known_skills,
             layout,
             tail_new_files=True,
             backfill=False,
-            detection_mode=detection_mode,
         )
         if events:
             print(f"[{utc_now_iso()}] wrote {events} new event(s)")
