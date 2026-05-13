@@ -20,6 +20,12 @@ DEFAULT_SKILLS_DIR = (Path(__file__).resolve().parent.parent / "skills")
 LAYOUT_CURSOR = "cursor"
 LAYOUT_CLAUDE_CODE = "claude-code"
 
+# Skill detection: "structured" = Skill tool + slash-command only (no path spam).
+# "both" = also log path matches to .../skills/<name>/SKILL.md (legacy behavior).
+DETECTION_STRUCTURED = "structured"
+DETECTION_BOTH = "both"
+ENV_DETECTION_MODE = "PANDA_SKILL_TRACK_DETECTION"
+
 # When the interval watcher sees a transcript path for the first time, we used to
 # jump straight to EOF so a fresh install would not ingest the entire history. That
 # also skipped the opening user line in brand-new sessions (skills often appear there).
@@ -250,6 +256,8 @@ def process_new_lines(
     agent_label: str,
     known_skills: set[str],
     layout: str,
+    *,
+    detection_mode: str,
 ) -> tuple[int, int]:
     file_size = transcript_file.stat().st_size
     offset = min(old_offset, file_size)
@@ -283,6 +291,9 @@ def process_new_lines(
                     **{s: "tool_use" for s in tool_skills},  # tool_use overwrites slash_command
                 }
             else:
+                if detection_mode != DETECTION_BOTH:
+                    # structured (default): do not log path-only mentions (repeated every turn).
+                    continue
                 path_skills = extract_path_skills(line)
                 # Skip mention-based detection entirely — the system reminder/context
                 # lists all skill names and causes bulk false-positive floods in both
@@ -322,6 +333,7 @@ def run_once(
     *,
     tail_new_files: bool,
     backfill: bool,
+    detection_mode: str,
 ) -> int:
     state = load_state(state_path)
     offsets: dict[str, int] = state.get("offsets", {})
@@ -344,6 +356,7 @@ def run_once(
             agent_label=agent_label,
             known_skills=known_skills,
             layout=layout,
+            detection_mode=detection_mode,
         )
         offsets[key] = new_offset
         total_events += events
@@ -351,6 +364,13 @@ def run_once(
     state["offsets"] = offsets
     save_state(state_path, state)
     return total_events
+
+
+def default_detection_mode() -> str:
+    raw = os.environ.get(ENV_DETECTION_MODE, DETECTION_STRUCTURED).strip().lower()
+    if raw == DETECTION_BOTH:
+        return DETECTION_BOTH
+    return DETECTION_STRUCTURED
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -402,7 +422,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--skills-dir",
         default=str(DEFAULT_SKILLS_DIR),
-        help="Skills directory used for mention-based detection.",
+        help="Skills directory (folder names under skills/ used for validation only; path detection matches paths in transcripts).",
+    )
+    parser.add_argument(
+        "--detection-mode",
+        choices=(DETECTION_STRUCTURED, DETECTION_BOTH),
+        default=default_detection_mode(),
+        help=(
+            f"How to detect skill usage. '{DETECTION_STRUCTURED}' (default): only Skill tool invocations "
+            f"and slash-commands — avoids duplicate rows from repeated paths in context. "
+            f"'{DETECTION_BOTH}': also log path matches to .../skills/<name>/SKILL.md (legacy). "
+            f"Override default with env {ENV_DETECTION_MODE}={DETECTION_STRUCTURED}|{DETECTION_BOTH}."
+        ),
     )
     parser.add_argument(
         "--interval-seconds",
@@ -434,6 +465,8 @@ def main() -> None:
         parser.error("--backfill requires --once")
 
     layout: str = args.layout
+    detection_mode: str = args.detection_mode
+
     if args.transcripts_root:
         transcripts_root = Path(args.transcripts_root).expanduser()
     elif layout == LAYOUT_CLAUDE_CODE:
@@ -467,11 +500,13 @@ def main() -> None:
             layout,
             tail_new_files=False,
             backfill=args.backfill,
+            detection_mode=detection_mode,
         )
         print(f"Processed once. New events written: {events}")
         return
 
     print(f"Layout: {layout}")
+    print(f"Detection mode: {detection_mode}")
     print(f"Watching transcripts under: {transcripts_root}")
     print(f"Using skills directory: {skills_dir}")
     print(f"Writing events to: {log_path}")
@@ -486,6 +521,7 @@ def main() -> None:
             layout,
             tail_new_files=True,
             backfill=False,
+            detection_mode=detection_mode,
         )
         if events:
             print(f"[{utc_now_iso()}] wrote {events} new event(s)")

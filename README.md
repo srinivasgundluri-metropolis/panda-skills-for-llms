@@ -34,6 +34,8 @@ pip install -r dashboard/requirements.txt
 python scripts/auto_track_skill_usage.py --layout claude-code --interval-seconds 5
 ```
 
+**Skill detection:** Default **`--detection-mode structured`** (Skill tool + slash-command only). Use **`--detection-mode both`** or **`PANDA_SKILL_TRACK_DETECTION=both`** to include path-based matches (legacy; can duplicate rows). Same flags apply to the Cursor watcher below.
+
 For each transcript file, the watcher remembers a byte offset in `skill-tracker-state.json` so lines are not double-counted. **New lines appended after that offset** are always scanned.
 
 The first time the interval watcher sees a transcript path that is **not yet in state**, it chooses a starting offset so a cold install does not ingest gigabytes of history: **if the file is at most 2 MiB**, it scans **from the beginning once** (so the opening user turn—attached skills, slash commands—is counted). **Larger unseen files** start at **end of file** (same “tail only” behavior as before). Override the size cap with **`PANDA_SKILL_TRACKER_FIRST_SCAN_MAX_BYTES`** (positive integer, bytes).
@@ -49,6 +51,8 @@ python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --interv
 ```
 
 Same **first-sight and tail** behavior as the Claude Code section (shared script); add **`--once`** (and optionally **`--once --backfill`**) when you explicitly want older Cursor transcripts counted.
+
+**Skill detection:** Default is **`--detection-mode structured`**: only **Skill tool** invocations and **slash-commands** are logged, so repeated `…/skills/<name>/SKILL.md` lines in transcript context do not create extra rows. For legacy behavior that also logs **path** matches, pass **`--detection-mode both`** or set **`PANDA_SKILL_TRACK_DETECTION=both`** before starting the watcher (LaunchAgents need that variable in the plist if you rely on env).
 
 Do not run two processes that write the **same** JSONL file.
 
