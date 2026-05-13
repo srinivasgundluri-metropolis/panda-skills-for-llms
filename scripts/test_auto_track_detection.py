@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for skill detection modes (structured vs both). Run: python3 scripts/test_auto_track_detection.py"""
+"""Unit tests for structured-only skill detection. Run: python3 scripts/test_auto_track_detection.py"""
 from __future__ import annotations
 
 import importlib.util
@@ -15,12 +15,7 @@ atu = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(atu)
 
 
-def _process_one_line(
-    line: str,
-    *,
-    detection_mode: str,
-    layout: str = atu.LAYOUT_CURSOR,
-) -> list[dict]:
+def _process_one_line(line: str, *, layout: str = atu.LAYOUT_CURSOR) -> list[dict]:
     with tempfile.TemporaryDirectory() as td:
         tdir = Path(td)
         session = tdir / "fake-session-uuid"
@@ -33,9 +28,7 @@ def _process_one_line(
             old_offset=0,
             log_path=log_path,
             agent_label="cursor",
-            known_skills=set(),
             layout=layout,
-            detection_mode=detection_mode,
         )
         assert new_off > 0
         if not log_path.exists():
@@ -43,23 +36,16 @@ def _process_one_line(
         return [json.loads(x) for x in log_path.read_text(encoding="utf-8").strip().splitlines() if x.strip()]
 
 
-class DetectionModeTests(unittest.TestCase):
-    def test_structured_ignores_path_only_line(self) -> None:
+class DetectionTests(unittest.TestCase):
+    def test_ignores_path_only_line(self) -> None:
         line = '{"x": "home/.cursor/skills/clean-up-repo/SKILL.md"}'
-        events = _process_one_line(line, detection_mode=atu.DETECTION_STRUCTURED)
+        events = _process_one_line(line)
         self.assertEqual(events, [])
 
-    def test_both_logs_path_line(self) -> None:
-        line = '{"x": "home/.cursor/skills/clean-up-repo/SKILL.md"}'
-        events = _process_one_line(line, detection_mode=atu.DETECTION_BOTH)
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0]["skill_name"], "clean-up-repo")
-        self.assertEqual(events[0]["detection"], "path")
-
-    def test_structured_logs_skill_tool(self) -> None:
+    def test_logs_skill_tool(self) -> None:
         payload = {"type": "tool_use", "name": "Skill", "input": {"skill": "open-pr"}}
         line = json.dumps(payload)
-        events = _process_one_line(line, detection_mode=atu.DETECTION_STRUCTURED)
+        events = _process_one_line(line)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["skill_name"], "open-pr")
         self.assertEqual(events[0]["detection"], "tool_use")
