@@ -29,6 +29,13 @@ ENV_FIRST_SIGHT_FULL_SCAN_MAX_BYTES = "PANDA_SKILL_TRACKER_FIRST_SCAN_MAX_BYTES"
 
 SLASH_COMMAND_PATTERN = re.compile(r"<command-name>/([^</\n]+)</command-name>")
 
+# Cursor user turns: skills attached via <manually_attached_skills> with "Skill Name:" then "Path:".
+CURSOR_MANUAL_ATTACH_OPEN = "<manually_attached_skills>"
+CURSOR_MANUAL_ATTACH_CLOSE = "</manually_attached_skills>"
+CURSOR_SKILL_NAME_WITH_PATH = re.compile(
+    r"(?m)^Skill Name:\s*([^\r\n]+?)\s*\r?\nPath:",
+)
+
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -183,6 +190,51 @@ def extract_slash_command_skills(raw_line: str) -> set[str]:
     return skills
 
 
+def extract_cursor_manual_attach_skills(raw_line: str) -> set[str]:
+    """Cursor agent-transcripts: user messages attach skills inside <manually_attached_skills> blocks.
+
+    Matches lines of the form ``Skill Name: <slug>`` immediately followed by a ``Path:`` line
+    (Cursor's format). Parsed only from ``role == "user"`` to avoid counting assistant echoes.
+    """
+    skills: set[str] = set()
+    if CURSOR_MANUAL_ATTACH_OPEN not in raw_line:
+        return skills
+    try:
+        entry = json.loads(raw_line)
+    except (json.JSONDecodeError, ValueError):
+        return skills
+    if entry.get("role") != "user":
+        return skills
+
+    msg = entry.get("message") or {}
+    content = msg.get("content") or entry.get("content") or ""
+    texts: list[str] = []
+    if isinstance(content, str):
+        texts.append(content)
+    elif isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                texts.append(str(item.get("text", "")))
+
+    for text in texts:
+        start = text.find(CURSOR_MANUAL_ATTACH_OPEN)
+        if start == -1:
+            continue
+        start += len(CURSOR_MANUAL_ATTACH_OPEN)
+        end = text.find(CURSOR_MANUAL_ATTACH_CLOSE, start)
+        if end == -1:
+            continue
+        block = text[start:end]
+        # Ignore prose inside inlined SKILL.md that might contain "Skill Name:"-like text.
+        if "SKILL.md content:" in block:
+            block = block.split("SKILL.md content:", 1)[0]
+        for match in CURSOR_SKILL_NAME_WITH_PATH.finditer(block):
+            name = match.group(1).strip()
+            if name and is_valid_skill_name(name):
+                skills.add(name)
+    return skills
+
+
 def infer_session_id(file_path: Path, layout: str) -> str:
     if layout == LAYOUT_CLAUDE_CODE:
         # Session transcript files are named <session-id>.jsonl under each project folder.
@@ -223,14 +275,16 @@ def process_new_lines(
         for line in lines:
             tool_skills = extract_tool_invocation_skills(line)
             slash_skills = extract_slash_command_skills(line)
-            if not tool_skills and not slash_skills:
+            manual_skills = (
+                extract_cursor_manual_attach_skills(line) if layout == LAYOUT_CURSOR else set()
+            )
+            if not tool_skills and not slash_skills and not manual_skills:
                 continue
-            # tool_use wins over slash_command when both are present for a skill.
-            all_skills = sorted(tool_skills | slash_skills)
-            detection_map = {
-                **{s: "slash_command" for s in slash_skills},
-                **{s: "tool_use" for s in tool_skills},
-            }
+            # tool_use > slash_command > cursor_manual_attach when the same skill appears multiple ways.
+            detection_map = {s: "cursor_manual_attach" for s in manual_skills}
+            detection_map.update({s: "slash_command" for s in slash_skills})
+            detection_map.update({s: "tool_use" for s in tool_skills})
+            all_skills = sorted(tool_skills | slash_skills | manual_skills)
             for skill in all_skills:
                 if skill in emitted_skills:
                     continue

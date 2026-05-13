@@ -14,7 +14,7 @@ Browse `skills/`, pick a folder, and open `SKILL.md`. That file is the contract:
 
 ## Following skill usage over time
 
-If you are curious how often certain skills actually get used, this repo includes a watcher that reads **session transcripts from disk** (it does not plug into an API). Whenever a line records an explicit **Skill** tool invocation or **slash-command**, it appends one line to a **JSONL** log you can chart later. A small **state** file remembers how far it has read each transcript so the same line is not counted twice.
+If you are curious how often certain skills actually get used, this repo includes a watcher that reads **session transcripts from disk** (it does not plug into an API). It appends one JSONL row per detected skill: **Claude Code** logs **Skill** tool calls and **slash-commands**; the **Cursor** watcher also logs **manually attached skills** from user turns (`detection` value `cursor_manual_attach`). A small **state** file remembers how far it has read each transcript so the same line is not counted twice.
 
 **Layout** tells the watcher *which product’s transcript layout* to expect and where the default log files go. **`claude-code`** is the default; **`cursor`** is a separate mode for Cursor’s `agent-transcripts` files under your `~/.cursor` tree.
 
@@ -34,7 +34,7 @@ pip install -r dashboard/requirements.txt
 python scripts/auto_track_skill_usage.py --layout claude-code --interval-seconds 5
 ```
 
-**Skill detection:** Only **Skill tool** invocations and **slash-commands** are logged (plain paths or skill names in free text are ignored). Same behavior for the Cursor watcher below.
+**Skill detection:** Only **Skill tool** invocations and **slash-commands** are logged (plain paths or skill names in free text are ignored).
 
 For each transcript file, the watcher remembers a byte offset in `skill-tracker-state.json` so lines are not double-counted. **New lines appended after that offset** are always scanned.
 
@@ -52,7 +52,7 @@ python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --interv
 
 Same **first-sight and tail** behavior as the Claude Code section (shared script); add **`--once`** (and optionally **`--once --backfill`**) when you explicitly want older Cursor transcripts counted.
 
-**Skill detection:** Only **Skill tool** invocations and **slash-commands** are logged, so repeated `…/skills/<name>/SKILL.md` lines in transcript context do not create rows by themselves.
+**Skill detection:** **Skill tool** invocations, **slash-commands**, and (on user turns only) skills listed inside **`<manually_attached_skills>`** as `Skill Name:` / `Path:` pairs—tagged in JSONL as **`cursor_manual_attach`**. Bare skill paths in other transcript text are still ignored.
 
 Do not run two processes that write the **same** JSONL file.
 
@@ -125,7 +125,7 @@ For the Cursor log specifically, add `--log-path` pointing at that layout’s JS
 
 ## When something looks off
 
-**Nothing shows in the dashboard.** Confirm the JSONL path in the sidebar, remember the watcher only logs **Skill** tool lines and **slash-commands**—not every mention of a skill name or path. For **large** transcripts already in state at EOF, run **`--once`** (or **`--once --backfill`** if needed) to ingest older bytes on purpose.
+**Nothing shows in the dashboard.** Confirm the JSONL path in the sidebar, remember the Cursor watcher logs **Skill** tool lines, **slash-commands**, and **manual attaches** on user turns—not arbitrary path or name mentions elsewhere. For **large** transcripts already in state at EOF, run **`--once`** (or **`--once --backfill`** if needed) to ingest older bytes on purpose.
 
 **The file stops growing.** The interval process has to stay running, and new content has to land in the transcript paths the watcher is scanning (override with `--transcripts-root` only if you know you need it).
 
