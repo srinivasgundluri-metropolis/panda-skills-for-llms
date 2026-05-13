@@ -34,7 +34,11 @@ pip install -r dashboard/requirements.txt
 python scripts/auto_track_skill_usage.py --layout claude-code --interval-seconds 5
 ```
 
-The interval watcher **does not scan old transcript bytes** for files it has never seen: it starts at the **current end of each file** and only logs skill usage from new lines written while it runs. To ingest **existing** transcript history on purpose, run **`--once`** (reads from the beginning for transcripts that are not in the state file yet). If you already ran the interval watcher (so state points at EOF) and later want a full history pass, use **`--once --backfill`** (may append duplicate rows if those sessions were already logged). Leave the interval process running while you work; stop with Ctrl+C. You can pass **`--agent some-label`** if you want a custom tag; otherwise the default label is `claude-code`.
+For each transcript file, the watcher remembers a byte offset in `skill-tracker-state.json` so lines are not double-counted. **New lines appended after that offset** are always scanned.
+
+The first time the interval watcher sees a transcript path that is **not yet in state**, it chooses a starting offset so a cold install does not ingest gigabytes of history: **if the file is at most 2 MiB**, it scans **from the beginning once** (so the opening user turn—attached skills, slash commands—is counted). **Larger unseen files** start at **end of file** (same “tail only” behavior as before). Override the size cap with **`PANDA_SKILL_TRACKER_FIRST_SCAN_MAX_BYTES`** (positive integer, bytes).
+
+To ingest **existing** transcript history on purpose, run **`--once`** (reads from the beginning for transcripts that are not in the state file yet). If state already tails those files and you want a full history pass, use **`--once --backfill`** (may append duplicate rows if those sessions were already logged). Leave the interval process running while you work; stop with Ctrl+C. You can pass **`--agent some-label`** if you want a custom tag; otherwise the default label is `claude-code`.
 
 ### Cursor
 
@@ -44,7 +48,7 @@ Cursor needs a **second** watcher with **`--layout cursor`**. It reads transcrip
 python scripts/auto_track_skill_usage.py --layout cursor --agent cursor --interval-seconds 5
 ```
 
-Same **tail-by-default** behavior as above; add **`--once`** (and optionally **`--once --backfill`**) when you explicitly want older Cursor transcripts counted.
+Same **first-sight and tail** behavior as the Claude Code section (shared script); add **`--once`** (and optionally **`--once --backfill`**) when you explicitly want older Cursor transcripts counted.
 
 Do not run two processes that write the **same** JSONL file.
 
@@ -115,7 +119,7 @@ For the Cursor log specifically, add `--log-path` pointing at that layout’s JS
 
 ## When something looks off
 
-**Nothing shows in the dashboard.** Confirm the JSONL path in the sidebar, remember the watcher only sees lines that mention real skill names from this repo’s `skills/` folders, and remember the interval watcher ignores transcript history until you run **`--once`** (or **`--once --backfill`** if state already tails those files).
+**Nothing shows in the dashboard.** Confirm the JSONL path in the sidebar, remember the watcher only logs lines that match its detection rules (paths, `Skill` tool, slash commands—not every mention of a skill name). For **large** transcripts already in state at EOF, run **`--once`** (or **`--once --backfill`** if needed) to ingest older bytes on purpose.
 
 **The file stops growing.** The interval process has to stay running, and new content has to land in the transcript paths the watcher is scanning (override with `--transcripts-root` only if you know you need it).
 
