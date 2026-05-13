@@ -1,0 +1,36 @@
+# Basenames to skip when copying from ~/.cursor/rules, ~/.claude/rules,
+# ~/.cursor/skills/<name>/, ~/.claude/skills/<name>/ into this repo.
+# Lines are bash glob patterns matched against the rule filename or skill folder name.
+# Empty lines and # comments are ignored.
+
+# GSD / generated agent packs
+gsd-*
+
+# Third-party / vendor skill pack (typical ~/.claude/skills mirrors — not authored in this repo)
+babysit
+brainstorming
+canvas
+create-hook
+create-rule
+create-skill
+create-subagent
+dispatching-parallel-agents
+executing-plans
+finishing-a-development-branch
+migrate-to-skills
+open-pr-personal
+receiving-code-review
+requesting-code-review
+shell
+split-to-prs
+statusline
+subagent-driven-development
+systematic-debugging
+test-skill
+update-cli-config
+update-cursor-settings
+using-git-worktrees
+using-superpowers
+verification-before-completion
+writing-plans
+writing-skills

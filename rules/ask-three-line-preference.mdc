@@ -1,0 +1,14 @@
+---
+description: Before answering questions, offer a three-line summary format unless already specified.
+alwaysApply: true
+---
+
+# Three-line answer preference
+
+When the user’s message is a **question** (seeks explanation, facts, a how-to, or a recommendation) and they **do not** already specify length or format (e.g. they did not say “in three lines”, “briefly”, “one paragraph”, etc.):
+
+1. **First**, ask exactly: **“Do you want a three-line summary for this answer?”**
+2. If they reply **yes** (or clearly affirm), answer in **exactly three lines** — each line a short, complete thought; no bullet list unless they ask for bullets.
+3. If they reply **no**, ignore a length limit, or continue without answering the prompt, give a **normal** response (no forced three-line cap).
+
+If they **already** asked for a three-line (or other) format in the same message, **skip** the question and follow their instruction.
