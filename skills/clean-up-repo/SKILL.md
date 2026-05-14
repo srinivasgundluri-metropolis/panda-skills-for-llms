@@ -18,9 +18,13 @@ Invoke when the user wants to **audit branches against `main`**, see **diff/log 
 ## Defaults and assumptions
 
 - **Base branch:** `main` on `origin` (`origin/main`). If the repo uses a different default branch, substitute it everywhere below.
-- **“Owner” branches:** Remote heads `origin/<name>` where **either**:
-  - `<name>` starts with `GitHub_login/` and `GitHub_login` is from `gh api user -q .login`, **or**
-  - the user explicitly asks to include **all** non-`main` remote branches (then skip the prefix filter and label the report “all remote branches”).
+- **”Owner” branches:** Remote heads `origin/<name>` where the branch is considered yours if **any** of the following match (checked in order):
+  1. **PR author (primary):** The branch has any PR (open or closed) where `pr.author.login == gh api user -q .login`. Fetch with:  
+     `gh pr list --repo <repo> --head <branch> --state all --json author,number,state,isDraft,url`
+  2. **Commit authorship (fallback, no PR):** If no PR exists, at least one commit on `origin/<branch>` not in `origin/main` has an author email matching any email in the owner email set (see step 2 of Workflow below). If the branch has zero commits ahead of `main`, check the tip commit author email.
+  3. **All-branches override:** The user explicitly asks to include **all** non-`main` remote branches (skip ownership checks and label the report “all remote branches”).
+
+  To build the candidate list: iterate all `git branch -r` entries (excluding `origin/main`, `origin/HEAD`, and protected/release branches), apply checks 1 then 2, and keep matches.
 - If `gh` is unavailable, stop and say authentication/API is required for PR classification; still list branches with git-only stats if the user agrees.
 - **“Commits ahead of `main`”:** `git rev-list --count origin/main..origin/<branch>` (unique commits on the branch not reachable from `origin/main`).
 - **“Behind `main`” (for the Active PR + behind main bucket):** `git rev-list --count origin/<branch>..origin/main` > 0 (commits on `main` not in the branch).
@@ -48,17 +52,24 @@ Consider only branches that pass the **owner** filter (unless user waived it).
 ## Workflow
 
 1. `git fetch origin --prune` (and ensure `origin/main` exists or resolve default branch).
-2. Build the candidate branch list (owner rule or user override).
-3. For each branch, record:
+2. Collect owner identity:
+   - `gh api user -q .login` → GitHub login
+   - `git config user.email` + `gh api user/emails -q '.[].email'` → deduplicated owner email set (used for commit authorship fallback only).
+3. Build the candidate branch list: for each `origin/<branch>` (excluding `main`, `HEAD`, protected):
+   - Fetch PR data: `gh pr list --repo <repo> --head <branch> --state all --json author,number,state,isDraft,url`
+   - **If any PR exists** and `pr.author.login == github_login` → include branch (ownership confirmed via PR).
+   - **If no PR exists** → run `git log --format="%ae" origin/main..origin/<branch>`; if no commits ahead use `git log -1 --format="%ae" origin/<branch>`; include if any email is in the owner email set.
+   - Reuse the PR data fetched here in step 4 (no second lookup needed).
+4. For each branch, record:
    - `git diff --stat origin/main...origin/<branch>` (and optionally `git log --oneline origin/main..origin/<branch>` truncated),
    - `commits_ahead`, `commits_behind` (the behind count above),
    - PR summary from `gh`,
    - tip SHA, tip date, assigned **bucket**.
-4. Present a **summary table** grouped by the four buckets (list 1 first if you want PR+behind highlighted at top, else follow numeric order below for the menu).
-5. **Deletion prompt (exactly this style):**  
+5. Present a **summary table** grouped by the four buckets (list 1 first if you want PR+behind highlighted at top, else follow numeric order below for the menu).
+6. **Deletion prompt (exactly this style):**  
    Ask which categories to delete remote branches for: **`1`** = Active PR + behind main, **`2`** = Active PRs (open/draft, not behind), **`3`** = Needs review before deleting, **`4`** = Safe to delete, **`all`** = union of all four.  
    Require explicit choice; do not delete without a clear answer mapping to those keys.
-6. On confirmation:
+7. On confirmation:
    - For each branch in selected categories, `git push origin --delete <branch>` (or the user’s remote name if not `origin`).
    - **Warn before deleting bucket 1 or 2:** open PRs may be affected; GitHub may block or leave dangling PR state—confirm override if they still choose it.
    - After deletes, show `git fetch origin --prune` and a short recap.
